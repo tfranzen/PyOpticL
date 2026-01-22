@@ -25,6 +25,19 @@ def clean_document():
     for i in App.ActiveDocument.Objects:
             App.ActiveDocument.removeObject(i.Name)
 
+def find_beam_after_element(label, obj = None):
+        if obj is None:
+             for child in App.ActiveDocument.Objects:
+                  return find_beam_after_element(label, child)
+        if hasattr(obj, 'ChildObject') and obj.ChildObject is not None:
+                if obj.ChildObject.Label == label:
+                    return obj.Children[0]
+        for child in obj.Children:
+            recurse = find_beam_after_element(label, child)
+            if recurse is not None:
+                return recurse
+        return None
+
 def build_layout(spacing):
     # Build the optical layout for a given spacing and return the beam waist
     layout = Layout("ULE Cavity")
@@ -77,7 +90,7 @@ def build_layout(spacing):
             ),
         ),
         beam_index=0b1,
-        distance=dim(50, "mm"),
+        distance=dim(150/2 - 25 + 1.5*25, "mm"),
         rotation=(0, 0, -45),
     )
 
@@ -92,7 +105,7 @@ def build_layout(spacing):
             ),
         ),
         beam_index=0b1,
-        distance=dim(50, "mm"),
+        distance=dim(25, "mm"),
         rotation=(0, 0, 135),
     )
 
@@ -113,9 +126,12 @@ def build_layout(spacing):
 
     
     layout.recompute()
+    
 
+    n = find_beam_after_element("Fiber collimator")
     # get the object representing the focussed beam - need to find a better solution for this
-    n= layout.get_object().Children[0].Children[-1].Children[0].Children[0].Children[0].Children[0].Children[0]
+    #n= layout.get_object().Children[0].Children[-1].Children[0].Children[0].Children[0].Children[0].Children[0]
+    #print(layout.get_object().Children[0].Children[-1].Children[0].Children[0].Children[0].Children[0].ChildObject.Label)
     waist = n.BeamWaist.Value
 
     return waist
@@ -143,6 +159,8 @@ try:
     print( "Interpolated optimum waist at spacing of %.1f mm" % xopt)
 except Exception as e:
     print ("Couldn't find optimum waist from data: %s" % e)
+
+
 
 
 
