@@ -4,7 +4,8 @@ from PyOpticL.layout import Component
 from PyOpticL.layout import Dimension as dim
 from PyOpticL.layout import Layout
 
-
+from matplotlib import pyplot as plt
+import numpy as np
 import FreeCAD as App
 
 """
@@ -105,7 +106,7 @@ def build_layout(spacing):
             ),
         ),
         beam_index=0b1,
-        distance=dim(25, "mm"),
+        distance=dim(50, "mm"),
         rotation=(0, 0, 135),
     )
 
@@ -127,21 +128,18 @@ def build_layout(spacing):
     
     layout.recompute()
     
+    # find and return beam waist after the collimator lens
+    beam = find_beam_after_element("Fiber collimator")
+    return beam.BeamWaist.Value
 
-    n = find_beam_after_element("Fiber collimator")
-    # get the object representing the focussed beam - need to find a better solution for this
-    #n= layout.get_object().Children[0].Children[-1].Children[0].Children[0].Children[0].Children[0].Children[0]
-    #print(layout.get_object().Children[0].Children[-1].Children[0].Children[0].Children[0].Children[0].ChildObject.Label)
-    waist = n.BeamWaist.Value
-
-    return waist
 
     
 
 
-import numpy as np
+# Scan spacing over a range of values for plot
 X_ = np.linspace(50,200, 10)
 Y_ = []
+
 for spacing in X_:
     waist = build_layout(spacing)
     print("Focussed beam waits at %.0f mm spacing: %.2f um" % (spacing, waist*1000))
@@ -149,8 +147,7 @@ for spacing in X_:
     clean_document()
 
 
-
-from matplotlib import pyplot as plt
+#Use data from previous step to estimate the optimal spacing
 xopt = np.mean(X_)
 from scipy.optimize import fsolve
 try:
@@ -160,13 +157,11 @@ try:
 except Exception as e:
     print ("Couldn't find optimum waist from data: %s" % e)
 
-
-
-
-
+#Build layout with optimised spacing and check final beam waist
 waist = build_layout(xopt)
 print( "Actual waist at optimised spacing: %.2f um" % (waist*1000))
 
+#Plot
 plt.figure()
 plt.plot(X_,np.array(Y_)*1000, label = "Focussed beam")
 plt.hlines([fiber_MFD/2],50,200, label = "Fiber mode", colors='k')
