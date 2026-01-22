@@ -19,7 +19,9 @@ Outputs are a plot of the beam waist on the fiber vs spacing and the optical lay
  """
 
 fiber_MFD = 6.6 # Fiber Mode Field Diameter in um
-f_collimator = 5
+f_collimator = 5 # mm
+cavity_waist = .283 # mm
+wavelength = 1156 # nm
 
 def clean_document():
     # Remove all components from document in between iterations
@@ -27,17 +29,35 @@ def clean_document():
             App.ActiveDocument.removeObject(i.Name)
 
 def find_beam_after_element(label, obj = None):
+        # recursively look for the beam after the element with the specified label
         if obj is None:
+             #First call, start with all objects in the active document
              for child in App.ActiveDocument.Objects:
                   return find_beam_after_element(label, child)
+             
         if hasattr(obj, 'ChildObject') and obj.ChildObject is not None:
+                # Is the object at the end of the current beam the object we are looking for?
                 if obj.ChildObject.Label == label:
+                    # if so, grab the beam segment after this
                     return obj.Children[0]
         for child in obj.Children:
+            # recursively look at all children of current object
             recurse = find_beam_after_element(label, child)
             if recurse is not None:
                 return recurse
+            
         return None
+
+def coupling_efficiency(w1,w2, wavelength = 1064, dz=0):
+    # estimate coupling effiency between mismatched modes 
+    if np.isclose(dz,0):
+        return np.square( 2 * (w1*w2) / (w1**2 + w2**2))
+    else:
+        # bring everything to um
+         dz = dz*1000
+         wavelength = wavelength /1000
+         return 1/( (w1**2 + w2**2)**2 / (4*w1**2 *w2**2) + (wavelength * dz / (2*np.pi*w1*w2))**2 ) 
+
 
 def build_layout(spacing):
     # Build the optical layout for a given spacing and return the beam waist
@@ -46,8 +66,8 @@ def build_layout(spacing):
     beam_path = layout.add(
         Beam_Path(
             label="Beam Path",
-            waist=dim(0.23, "mm"), # beam geometry from cavity mode calculation
-            wavelength=1156,
+            waist=dim(cavity_waist, "mm"), # beam geometry from cavity mode calculation
+            wavelength=wavelength,
         ),
         position=(0, 0, 0),
         rotation=(0, 0, 90),
@@ -133,9 +153,6 @@ def build_layout(spacing):
     return beam.BeamWaist.Value
 
 
-    
-
-
 # Scan spacing over a range of values for plot
 X_ = np.linspace(50,200, 10)
 Y_ = []
@@ -161,12 +178,28 @@ except Exception as e:
 waist = build_layout(xopt)
 print( "Actual waist at optimised spacing: %.2f um" % (waist*1000))
 
+
 #Plot
-plt.figure()
-plt.plot(X_,np.array(Y_)*1000, label = "Focussed beam")
-plt.hlines([fiber_MFD/2],50,200, label = "Fiber mode", colors='k')
-plt.vlines(xopt,0,4, label = "Optimised spacing", colors='k')
-plt.xlabel("Length of last leg (mm)")
-plt.ylabel("Beam waist (um)")
-plt.legend()
+Y2_ = coupling_efficiency(fiber_MFD/2, np.array(Y_)*1000) *100
+fig, ax1 = plt.subplots()
+
+
+ax2 = ax1.twinx()  
+a, = ax1.plot(X_,np.array(Y_)*1000, label = "Focussed beam", color = 'C1')
+b = ax1.hlines([fiber_MFD/2],np.min(X_),xopt, label = "Fiber mode", colors='k')
+c = ax1.vlines(xopt,0,fiber_MFD/2, label = "Optimised spacing", colors='k')
+ax1.set_xlim(np.min(X_), np.max(X_))
+ax1.set_ylim(0, 1000*np.max(Y_))
+
+ax1.set_xlabel("Length of last leg (mm)")
+ax1.set_ylabel("Beam waist (um)")
+ax2.set_ylabel("Coupling efficiency (%)")
+
+d, = ax2.plot(X_,Y2_, color='C2', label = "Coupling efficiency")
+ax2.set_ylim(90,100)
+
+ax1.legend(handles = [a,d], loc = "lower left")
 plt.show()
+
+
+
