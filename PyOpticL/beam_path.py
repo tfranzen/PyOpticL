@@ -289,11 +289,12 @@ class Beam_Segment(Layout):
             # TODO: may want to make ddw a user-defined parameter
             dz = self.get_next_beam_point(q_param, 1e-3)  # get next segment distance
             dz = min(dz, self.distance - current_position)  # clip to remaining distance
+            dz = max(dz, 1e-4)
             # calculate starting and ending radius for segment
             radius1 = self.get_beam_radius(q_param)
             radius2 = self.get_beam_radius(q_param + dz)
             # create conical section
-            if radius1 == radius2:  # freecad does not support cones with equal radii
+            if np.isclose(radius1,radius2, rtol=1e-3, atol=1e-5):  # freecad does not support cones with equal radii
                 shape = Part.makeCylinder(
                     radius1,
                     dz,
