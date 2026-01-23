@@ -24,11 +24,25 @@ cavity_waist = .283 # mm
 wavelength = 1156 # nm
 
 def clean_document():
-    # Remove all components from document in between iterations
+    """
+        Remove all components from document in between iterations
+    """
+     
     for i in App.ActiveDocument.Objects:
             App.ActiveDocument.removeObject(i.Name)
 
 def find_beam_after_element(label, obj = None):
+        """
+        Find the beam immediately following the object with the specified label
+
+        Args:
+            label (str): Label of object
+            obj (FreeCAD object): Starting point for search, if None will search active document
+
+        Returns:
+            beamsegment: The beam segment immediately following the object with the specified label
+        """
+
         # recursively look for the beam after the element with the specified label
         if obj is None:
              #First call, start with all objects in the active document
@@ -49,6 +63,18 @@ def find_beam_after_element(label, obj = None):
         return None
 
 def coupling_efficiency(w1,w2, wavelength = 1064, dz=0):
+    """
+        Estimate coupling efficiency between mismatched Gaussian modes assuming perfect transverse and angular alignment
+
+        Args:
+            w1 (float): Beam waist of first mode in um
+            w2 (float): Beam waist of second mode in um
+            wavelength (float): Optical wavelength in nm
+            dz (float): longitudinal offset between the two modes
+        Returns:
+            coupling_efficiency (float): Estimated coupling efficiency
+
+        """
     # estimate coupling effiency between mismatched modes 
     if np.isclose(dz,0):
         return np.square( 2 * (w1*w2) / (w1**2 + w2**2))
@@ -60,6 +86,15 @@ def coupling_efficiency(w1,w2, wavelength = 1064, dz=0):
 
 
 def build_layout(spacing):
+    """
+        Build the optical layout with a specified spacing
+
+        Args:
+            spacing (float): Spacing in mm
+
+        Returns:
+            beam_waist (float): beam waist in mm
+        """
     # Build the optical layout for a given spacing and return the beam waist
     layout = Layout("ULE Cavity")
 
