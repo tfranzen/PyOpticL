@@ -23,6 +23,8 @@ f_collimator = 5 # mm
 cavity_waist = .283 # mm
 wavelength = 1156 # nm
 
+optimize_spacing = False
+
 def clean_document():
     """
         Remove all components from document in between iterations
@@ -188,53 +190,56 @@ def build_layout(spacing):
     return beam.BeamWaist.Value
 
 
-# Scan spacing over a range of values for plot
-X_ = np.linspace(50,200, 10)
-Y_ = []
 
-for spacing in X_:
-    waist = build_layout(spacing)
-    print("Focussed beam waits at %.0f mm spacing: %.2f um" % (spacing, waist*1000))
-    Y_.append(waist)
-    clean_document()
+if optimize_spacing:
+    # Scan spacing over a range of values for plot
+    X_ = np.linspace(50,200, 10)
+    Y_ = []
+
+    for spacing in X_:
+        waist = build_layout(spacing)
+        print("Focussed beam waits at %.0f mm spacing: %.2f um" % (spacing, waist*1000))
+        Y_.append(waist)
+        clean_document()
 
 
-#Use data from previous step to estimate the optimal spacing
-xopt = np.mean(X_)
-from scipy.optimize import fsolve
-try:
-    f = lambda x: np.interp(x, X_, Y_) - fiber_MFD/2/1000
-    xopt = fsolve(f, np.mean(X_) )[0]
-    print( "Interpolated optimum waist at spacing of %.1f mm" % xopt)
-except Exception as e:
-    print ("Couldn't find optimum waist from data: %s" % e)
+    #Use data from previous step to estimate the optimal spacing
+    xopt = np.mean(X_)
+    from scipy.optimize import fsolve
+    try:
+        f = lambda x: np.interp(x, X_, Y_) - fiber_MFD/2/1000
+        xopt = fsolve(f, np.mean(X_) )[0]
+        print( "Interpolated optimum waist at spacing of %.1f mm" % xopt)
+    except Exception as e:
+        print ("Couldn't find optimum waist from data: %s" % e)
+
+
+    #Plot
+    Y2_ = coupling_efficiency(fiber_MFD/2, np.array(Y_)*1000) *100
+    fig, ax1 = plt.subplots()
+
+
+    ax2 = ax1.twinx()  
+    a, = ax1.plot(X_,np.array(Y_)*1000, label = "Focussed beam", color = 'C1')
+    b = ax1.hlines([fiber_MFD/2],np.min(X_),xopt, label = "Fiber mode", colors='k')
+    c = ax1.vlines(xopt,0,fiber_MFD/2, label = "Optimised spacing", colors='k')
+    ax1.set_xlim(np.min(X_), np.max(X_))
+    ax1.set_ylim(0, 1000*np.max(Y_))
+
+    ax1.set_xlabel("Length of last leg (mm)")
+    ax1.set_ylabel("Beam waist (um)")
+    ax2.set_ylabel("Coupling efficiency (%)")
+
+    d, = ax2.plot(X_,Y2_, color='C2', label = "Coupling efficiency")
+    ax2.set_ylim(90,100)
+
+    ax1.legend(handles = [a,d], loc = "lower left")
+    plt.show()
+else: 
+     xopt = 158 # value from previous optimisation run
+
+
 
 #Build layout with optimised spacing and check final beam waist
 waist = build_layout(xopt)
 print( "Actual waist at optimised spacing: %.2f um" % (waist*1000))
-
-
-#Plot
-Y2_ = coupling_efficiency(fiber_MFD/2, np.array(Y_)*1000) *100
-fig, ax1 = plt.subplots()
-
-
-ax2 = ax1.twinx()  
-a, = ax1.plot(X_,np.array(Y_)*1000, label = "Focussed beam", color = 'C1')
-b = ax1.hlines([fiber_MFD/2],np.min(X_),xopt, label = "Fiber mode", colors='k')
-c = ax1.vlines(xopt,0,fiber_MFD/2, label = "Optimised spacing", colors='k')
-ax1.set_xlim(np.min(X_), np.max(X_))
-ax1.set_ylim(0, 1000*np.max(Y_))
-
-ax1.set_xlabel("Length of last leg (mm)")
-ax1.set_ylabel("Beam waist (um)")
-ax2.set_ylabel("Coupling efficiency (%)")
-
-d, = ax2.plot(X_,Y2_, color='C2', label = "Coupling efficiency")
-ax2.set_ylim(90,100)
-
-ax1.legend(handles = [a,d], loc = "lower left")
-plt.show()
-
-
-
