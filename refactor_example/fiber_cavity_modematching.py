@@ -23,34 +23,8 @@ f_collimator = 5 # mm
 cavity_waist = .283 # mm
 wavelength = 1156 # nm
 
-spacing = 175
-optimize_spacing = True
-
-
-
-def coupling_efficiency(w1,w2, wavelength = 1064, dz=0):
-    """
-        Estimate coupling efficiency between mismatched Gaussian modes assuming perfect transverse and angular alignment
-
-        Args:
-            w1 (float): Beam waist of first mode in um
-            w2 (float): Beam waist of second mode in um
-            wavelength (float): Optical wavelength in nm
-            dz (float): longitudinal offset between the two modes
-        Returns:
-            coupling_efficiency (float): Estimated coupling efficiency
-
-        """
-    # estimate coupling effiency between mismatched modes 
-    if np.isclose(dz,0):
-        return np.square( 2 * (w1*w2) / (w1**2 + w2**2))
-    else:
-        # bring everything to um
-         dz = dz*1000
-         wavelength = wavelength /1000
-         return 1/( (w1**2 + w2**2)**2 / (4*w1**2 *w2**2) + (wavelength * dz / (2*np.pi*w1*w2))**2 ) 
-
-
+spacing = 175 # initial spacing
+optimize_spacing = True # Toggle optimization
 
 # Build the optical layout for a given spacing and return the beam waist
 layout = Layout("ULE Cavity")
@@ -167,8 +141,6 @@ pd_lens = beam_path.add(
     rotation=(0, 0, 90),
 )
 
-print("Place photodiode into focus")
-
 focus =  pd_lens.get_beam_after().WaistPosition.Value
 print("Distance from photodiode lens to focus: %.1f mm" % focus)
 
@@ -207,12 +179,14 @@ if optimize_spacing:
     Y_ = []
 
     for spacing in X_:
+        # modify layout and determine beam waist and coupling efficiency for each
         fiber_collimator.distance = spacing
         layout.recompute() # need to recompute (should make it so changing distance resets placed)
         beam = fiber_collimator.get_beam_after()
         waist = beam.BeamWaist.Value
 
         print("Focussed beam waits at %.0f mm spacing: %.2f um" % (spacing, waist*1000))
+
         coupling_efficiency = beam.Proxy.get_beam_overlap(fiber_MFD/2/1000)
         Y_.append([waist,coupling_efficiency])
     Y_ = np.array(Y_)
@@ -234,7 +208,6 @@ if optimize_spacing:
     Y2_ = Y_[:,1]*100
 
     fig, ax1 = plt.subplots()
-
 
     ax2 = ax1.twinx()  
     a, = ax1.plot(X_,np.array(Y1_), label = "Focussed beam", color = 'C1')
