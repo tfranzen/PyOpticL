@@ -364,6 +364,35 @@ class Beam_Segment(Layout):
         super().compute_placement()
         self.compute_shape()
 
+    def get_beam_overlap(self,w, z0=None):
+        """
+            Estimate coupling efficiency between mismatched Gaussian modes assuming perfect transverse and angular alignment
+
+            Args:
+                w (float): Beam waist of other mode in mm
+                dz (float): longitudinal offset between the two modes in mm
+            Returns:
+                coupling_efficiency (float): Estimated coupling efficiency
+
+            """
+        
+        w1 = self.get_object().BeamWaist.Value
+        
+        if z0 is None:
+            dz = 0
+        else:
+            dz = z0-self.waist_distance
+
+        # estimate coupling effciency between mismatched modes 
+        if np.isclose(dz,0):
+            return np.square( 2 * (w1*w) / (w1**2 + w**2))
+        else:
+            # bring everything to um
+            dz = dz*1000
+            wavelength = wavelength /1000
+            return 1/( (w1**2 + w**2)**2 / (4*w1**2 *w**2) + (wavelength * dz / (2*np.pi*w1*w))**2 ) 
+
+
 
 class Beam_Path(Layout):
     """

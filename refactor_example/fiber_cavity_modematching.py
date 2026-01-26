@@ -213,14 +213,15 @@ if optimize_spacing:
         waist = beam.BeamWaist.Value
 
         print("Focussed beam waits at %.0f mm spacing: %.2f um" % (spacing, waist*1000))
-        Y_.append(waist)
-
+        coupling_efficiency = beam.Proxy.get_beam_overlap(fiber_MFD/2/1000)
+        Y_.append([waist,coupling_efficiency])
+    Y_ = np.array(Y_)
 
     #Use data from previous step to estimate the optimal spacing
     xopt = np.mean(X_)
     from scipy.optimize import fsolve
     try:
-        f = lambda x: np.interp(x, X_, Y_) - fiber_MFD/2/1000
+        f = lambda x: np.interp(x, X_, Y_[:,0]) - fiber_MFD/2/1000
         xopt = fsolve(f, np.mean(X_) )[0]
         print( "Interpolated optimum waist at spacing of %.1f mm" % xopt)
     except Exception as e:
@@ -228,16 +229,19 @@ if optimize_spacing:
 
 
     #Plot
-    Y2_ = coupling_efficiency(fiber_MFD/2, np.array(Y_)*1000) *100
+    
+    Y1_ = Y_[:,0]*1000
+    Y2_ = Y_[:,1]*100
+
     fig, ax1 = plt.subplots()
 
 
     ax2 = ax1.twinx()  
-    a, = ax1.plot(X_,np.array(Y_)*1000, label = "Focussed beam", color = 'C1')
+    a, = ax1.plot(X_,np.array(Y1_), label = "Focussed beam", color = 'C1')
     b = ax1.hlines([fiber_MFD/2],np.min(X_),xopt, label = "Fiber mode", colors='k')
     c = ax1.vlines(xopt,0,fiber_MFD/2, label = "Optimised spacing", colors='k')
     ax1.set_xlim(np.min(X_), np.max(X_))
-    ax1.set_ylim(0, 1000*np.max(Y_))
+    ax1.set_ylim(0, np.max(Y1_))
 
     ax1.set_xlabel("Length of last leg (mm)")
     ax1.set_ylabel("Beam waist (um)")
