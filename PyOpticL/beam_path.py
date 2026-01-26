@@ -10,16 +10,6 @@ from PyOpticL.layout import Layout
 from PyOpticL.utils import collect_children, wavelength_to_rgb
 
 
-class DeleteObserver:
-    def __init__(self, names):
-        self.names = names
-
-    def slotRecomputedDocument(self, doc):
-        for name in self.names:
-            if doc.getObject(name):
-                doc.removeObject(name)
-        App.removeDocumentObserver(self)
-
 
 class Beam_Segment(Layout):
     """
@@ -511,10 +501,15 @@ class Beam_Path(Layout):
             obj.Placement.Rotation = App.Rotation("XYZ", 0, 0, 0)
 
         # clear previous beam segments
-        if len(obj.BeamSegments) > 0:
-            to_delete = [beam.Name for beam in obj.BeamSegments]
-            App.addDocumentObserver(DeleteObserver(to_delete))
-            obj.BeamSegments = []
+        for beam in obj.BeamSegments:
+            App.ActiveDocument.removeObject(beam.Name)
+
+        # clear placed flags
+        # TODO: would be more efficient to only do this downstream from any changes
+        for child in obj.Children:
+            if hasattr(child.Proxy, 'placed'):
+                print(child.Name)
+                child.Proxy.placed = False
 
         # add initial input beam
         direction = obj.BasePlacement.Rotation.multVec(App.Vector(1, 0, 0))
@@ -529,7 +524,7 @@ class Beam_Path(Layout):
         )
         super().add(input_beam, position=(0, 0, 0), rotation=(0, 0, 0))
         obj.BeamSegments += [input_beam.get_object()]
-
+        
         # check for loose ends and start simulation from there
         for beam in obj.BeamSegments:
             beam.Proxy.compute_placement()
@@ -624,7 +619,7 @@ class Beam_Path(Layout):
                 raise RuntimeError(
                     f"Beam child {next_object.Label} does not have any interfaces"
                 )
-
+            
             proxy = next_object.Proxy
             # get position from provided constraint
             next_position = input_beam.get_constraint_position(
