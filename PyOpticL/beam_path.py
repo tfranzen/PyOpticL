@@ -377,20 +377,20 @@ class Beam_Segment(Layout):
             """
         
         w1 = self.get_object().BeamWaist.Value
-        
+
         if z0 is None:
             dz = 0
         else:
             dz = z0-self.waist_distance
 
-        # estimate coupling effciency between mismatched modes 
+        # estimate coupling efficiency between mismatched modes 
         if np.isclose(dz,0):
             return np.square( 2 * (w1*w) / (w1**2 + w**2))
         else:
             # bring everything to um
-            dz = dz*1000
-            wavelength = wavelength /1000
-            return 1/( (w1**2 + w**2)**2 / (4*w1**2 *w**2) + (wavelength * dz / (2*np.pi*w1*w))**2 ) 
+            dz = dz
+            wavelength = wavelength /1e6
+            return 1/( (w1**2 + w**2)**2 / (4*w1**2 *w**2) + (self.wavelength * dz / (2*np.pi*w1*w))**2 ) 
 
 
 
