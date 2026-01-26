@@ -187,6 +187,66 @@ class Layout:
         print(f"Recomputing {obj.Name}...")
         self.recompute()
 
+    def get_beam_after(self, tag = "transmitted") -> Beam_Segment:
+        """Locate the beam after this element
+
+        Args:
+            tag (str): defines the type of beam to retrieve ( defaults to transmitted)
+        Returns:
+            beam (Beam_Segment): the beam immediately following this layout (or None)
+        """
+
+        beam_path = self.get_object().Parent
+
+        if not self.placed:
+            print ("Not yet placed, trigger recomputation")
+            beam_path.recompute() 
+            beam_path.purgeTouched()
+
+        def find_beam(label,tag,obj):
+
+            if hasattr(obj, 'ChildObject') and obj.ChildObject is not None:
+                # Is the object at the end of the current beam the object we are looking for?
+                if obj.ChildObject.FullName == label:
+                    # if so, grab the beam segment after this that matches the requested tag
+                    for beam in obj.Children:
+                        if beam.Tag == tag:
+                            return beam
+            for child in obj.Children:
+                # recursively look at all children of current object
+                recurse = find_beam(label, tag,child)
+                if recurse is not None:
+                    return recurse
+        return find_beam( self.get_object().FullName, tag, beam_path)
+    
+
+    
+    def transmitted(self):
+        """
+        Convenience function returning the beam index for the transmitted beam
+
+        Returns:
+            beam_index (int): The beam index of the transmitted beam
+        """
+        beam = self.get_beam_after("transmitted")
+        if beam is not None:
+            return beam.Proxy.index
+        return None
+
+    def reflected(self):
+        
+        """
+        Convenience function returning the beam index for the reflected beam
+
+        Returns:
+            beam_index (int): The beam index of the reflected beam
+        """
+        beam = self.get_beam_after("reflected")
+    
+        if beam is not None:
+            return beam.Proxy.index
+        return None
+
 
 class Component(Layout):
     """

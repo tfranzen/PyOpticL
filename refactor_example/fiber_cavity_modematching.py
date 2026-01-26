@@ -23,46 +23,10 @@ f_collimator = 5 # mm
 cavity_waist = .283 # mm
 wavelength = 1156 # nm
 
-optimize_spacing = False
+spacing = 175
+optimize_spacing = True
 
-def clean_document():
-    """
-        Remove all components from document in between iterations
-    """
-     
-    for i in App.ActiveDocument.Objects:
-            App.ActiveDocument.removeObject(i.Name)
 
-def find_beam_after_element(label, obj = None):
-        """
-        Find the beam immediately following the object with the specified label
-
-        Args:
-            label (str): Label of object
-            obj (FreeCAD object): Starting point for search, if None will search active document
-
-        Returns:
-            beamsegment: The beam segment immediately following the object with the specified label
-        """
-
-        # recursively look for the beam after the element with the specified label
-        if obj is None:
-             #First call, start with all objects in the active document
-             for child in App.ActiveDocument.Objects:
-                  return find_beam_after_element(label, child)
-             
-        if hasattr(obj, 'ChildObject') and obj.ChildObject is not None:
-                # Is the object at the end of the current beam the object we are looking for?
-                if obj.ChildObject.Label == label:
-                    # if so, grab the beam segment after this
-                    return obj.Children[0]
-        for child in obj.Children:
-            # recursively look at all children of current object
-            recurse = find_beam_after_element(label, child)
-            if recurse is not None:
-                return recurse
-            
-        return None
 
 def coupling_efficiency(w1,w2, wavelength = 1064, dz=0):
     """
@@ -87,109 +51,155 @@ def coupling_efficiency(w1,w2, wavelength = 1064, dz=0):
          return 1/( (w1**2 + w2**2)**2 / (4*w1**2 *w2**2) + (wavelength * dz / (2*np.pi*w1*w2))**2 ) 
 
 
-def build_layout(spacing):
-    """
-        Build the optical layout with a specified spacing
 
-        Args:
-            spacing (float): Spacing in mm
+# Build the optical layout for a given spacing and return the beam waist
+layout = Layout("ULE Cavity")
 
-        Returns:
-            beam_waist (float): beam waist in mm
-        """
-    # Build the optical layout for a given spacing and return the beam waist
-    layout = Layout("ULE Cavity")
-
-    beam_path = layout.add(
-        Beam_Path(
-            label="Beam Path",
-            waist=dim(cavity_waist, "mm"), # beam geometry from cavity mode calculation
-            wavelength=wavelength,
+beam_path = layout.add(
+    Beam_Path(
+        label="Beam Path",
+        waist=dim(cavity_waist, "mm"), # beam geometry from cavity mode calculation
+        wavelength=wavelength,
+        polarization=45,
+    ),
+    position=(0, 0, 0),
+    rotation=(0, 0, 90),
+)
+beam_path.add(
+    Component(
+        label="Outcoupling mirror",
+        definition=optomech.spherical_lens(
+            diameter=dim(1, "in"),
+            thickness=dim(2, "mm"),
+            focal_length=dim(np.inf, "mm"), # just need to render a glass plate here to represent the plane mirror
         ),
-        position=(0, 0, 0),
-        rotation=(0, 0, 90),
-    )
-    beam_path.add(
-        Component(
-            label="Outcoupling mirror",
-            definition=optomech.spherical_lens(
-                diameter=dim(1, "in"),
-                thickness=dim(2, "mm"),
-                focal_length=dim(np.inf, "mm"), # just need to render a glass plate here to represent the plane mirror
-            ),
+    ),
+    beam_index=0b1,
+    distance=dim(1, "mm"),
+    rotation=(0, 0, 90),
+)
+
+beam_path.add(
+    Component(
+        label="Incoupling mirror",
+        definition=optomech.spherical_lens(
+            diameter=dim(1, "in"),
+            thickness=dim(2, "mm"),
+            focal_length=dim(-2000, "mm"), # the shape of the curved mirror creates a (very weak) lens
         ),
-        beam_index=0b1,
-        distance=dim(1, "mm"),
-        rotation=(0, 0, 90),
-    )
+    ),
+    beam_index=0b1,
+    distance=dim(50, "mm"),
+    rotation=(0, 0, 90),
+)
 
-    beam_path.add(
-        Component(
-            label="Incoupling mirror",
-            definition=optomech.spherical_lens(
-                diameter=dim(1, "in"),
-                thickness=dim(2, "mm"),
-                focal_length=dim(-2000, "mm"), # the shape of the curved mirror creates a (very weak) lens
-            ),
+
+beam_path.add(
+    Component(
+        label="Steering mirror 1",
+        definition=optomech.circular_mirror(
+            
+            thickness=dim(6, "mm"),
+            diameter=dim(.5, "in"),
         ),
-        beam_index=0b1,
-        distance=dim(50, "mm"),
-        rotation=(0, 0, 90),
-    )
+    ),
+    beam_index=0b1,
+    distance=dim(150/2 - 25 + 1.5*25, "mm"),
+    rotation=(0, 0, -45),
+)
 
 
-    beam_path.add(
-        Component(
-            label="Steering mirror 1",
-            definition=optomech.circular_mirror(
-                
-                thickness=dim(6, "mm"),
-                diameter=dim(.5, "in"),
-            ),
+beam_path.add(
+    Component(
+        label="Steering mirror 2",
+        definition=optomech.circular_mirror(
+            
+            thickness=dim(6, "mm"),
+            diameter=dim(.5, "in"),
         ),
-        beam_index=0b1,
-        distance=dim(150/2 - 25 + 1.5*25, "mm"),
-        rotation=(0, 0, -45),
-    )
+    ),
+    beam_index=0b1,
+    distance=dim(50, "mm"),
+    rotation=(0, 0, 135),
+)
 
-
-    beam_path.add(
-        Component(
-            label="Steering mirror 2",
-            definition=optomech.circular_mirror(
-                
-                thickness=dim(6, "mm"),
-                diameter=dim(.5, "in"),
-            ),
+pbs = beam_path.add(
+    Component(
+        label="PBS",
+        definition=optomech.polarizing_beam_splitter_cube(
+            size=dim(.5, "in"), ref_polarization=0
         ),
-        beam_index=0b1,
-        distance=dim(50, "mm"),
-        rotation=(0, 0, 135),
-    )
+    ),
+    beam_index=0b1,
+    distance=dim(25, "mm"),
+    rotation=(0, 0, 180),
+)
 
-    fibre_beam = beam_path.add(
-        Component(
-            label="Fiber collimator",
-            definition=optomech.spherical_lens(
-                diameter=dim(10, "mm"),
-                thickness=dim(2, "mm"),
-                focal_length=dim(f_collimator, "mm"),
-            ),
+pd_path = pbs.reflected()
+fiber_path = pbs.transmitted()
+
+beam_path.add(
+    Component(
+        label="Photodiode mirror",
+        definition=optomech.circular_mirror(
+            
+            thickness=dim(6, "mm"),
+            diameter=dim(.5, "in"),
         ),
-        beam_index=0b1,
-        distance=dim(spacing, "mm"),
-        rotation=(0, 0, 90),
-    )
+    ),
+    beam_index=pd_path,
+    distance=dim(50, "mm"),
+    rotation=(0, 0, 45),
+)
 
 
-    
-    layout.recompute()
-    
-    # find and return beam waist after the collimator lens
-    beam = find_beam_after_element("Fiber collimator")
-    return beam.BeamWaist.Value
+pd_lens = beam_path.add(
+    Component(
+        label="Photodiode lens",
+        definition=optomech.spherical_lens(
+            diameter=dim(.5, "in"),
+            thickness=dim(2, "mm"),
+            focal_length=dim(25, "mm"),
+        ),
+    ),
+    beam_index=pd_path,
+    distance=dim(10, "mm"),
+    rotation=(0, 0, 90),
+)
 
+print("Place photodiode into focus")
 
+focus =  pd_lens.get_beam_after().WaistPosition.Value
+print("Distance from photodiode lens to focus: %.1f mm" % focus)
+
+beam_path.add(
+    Component(
+        label="Photodiode",
+        definition=optomech.spherical_lens(
+            diameter=dim(1, "mm"),
+            thickness=dim(.2, "mm"),
+            focal_length=dim(np.inf, "mm"),
+        ),
+    ),
+    beam_index=pd_path,
+    distance=dim(focus, "mm"),
+    rotation=(0, 0, 90),
+)
+
+print("Place collimator")
+fiber_collimator = beam_path.add(
+    Component(
+        label="Fiber collimator",
+        definition=optomech.spherical_lens(
+            diameter=dim(10, "mm"),
+            thickness=dim(2, "mm"),
+            focal_length=dim(f_collimator, "mm"),
+        ),
+    ),
+    beam_index=fiber_path,
+    distance=dim(spacing, "mm"),
+    rotation=(0, 0, 90),
+)
 
 if optimize_spacing:
     # Scan spacing over a range of values for plot
@@ -197,10 +207,13 @@ if optimize_spacing:
     Y_ = []
 
     for spacing in X_:
-        waist = build_layout(spacing)
+        fiber_collimator.distance = spacing
+        layout.recompute() # need to recompute (should make it so changing distance resets placed)
+        beam = fiber_collimator.get_beam_after()
+        waist = beam.BeamWaist.Value
+
         print("Focussed beam waits at %.0f mm spacing: %.2f um" % (spacing, waist*1000))
         Y_.append(waist)
-        clean_document()
 
 
     #Use data from previous step to estimate the optimal spacing
@@ -236,10 +249,13 @@ if optimize_spacing:
     ax1.legend(handles = [a,d], loc = "lower left")
     plt.show()
 else: 
-     xopt = 158 # value from previous optimisation run
+     xopt = 133 # value from previous optimisation run
 
 
 
 #Build layout with optimised spacing and check final beam waist
-waist = build_layout(xopt)
+fiber_collimator.distance = xopt
+layout.recompute()
+beam = fiber_collimator.get_beam_after()
+waist = beam.BeamWaist.Value
 print( "Actual waist at optimised spacing: %.2f um" % (waist*1000))

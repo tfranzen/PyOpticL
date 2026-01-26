@@ -28,6 +28,7 @@ class Beam_Segment(Layout):
         waist_position (float): Position of the beam waist in mm
         waist (float): Beam waist radius in mm
         rayleigh_range (float): Rayleigh range in mm
+        tag (str): tag identifying the interaction creating this beam
     """
 
     object_group = "beam_path"
@@ -43,6 +44,7 @@ class Beam_Segment(Layout):
         waist_position: dim,
         waist: dim = None,
         rayleigh_range: dim = None,
+        tag: str = None,
     ):
 
         super().__init__(
@@ -55,6 +57,7 @@ class Beam_Segment(Layout):
         self.polarization = polarization
         self.power = power
         self.waist_position = waist_position
+        self.tag = tag
         self.distance = 0  # to be set during path calculation
 
         if rayleigh_range is not None:
@@ -73,6 +76,7 @@ class Beam_Segment(Layout):
         self.make_property("Wavelength", "App::PropertyLength", visible=True)
         self.make_property("PolarizationAngle", "App::PropertyAngle", visible=True)
         self.make_property("Power", "App::PropertyPower", visible=True)
+        self.make_property("Tag", "App::PropertyString", visible=True)
         self.make_property("Distance", "App::PropertyLength", visible=True)
 
         # additional object links
@@ -288,7 +292,7 @@ class Beam_Segment(Layout):
         current_position = 0  # track position along beam segments
         while current_position < self.distance:
             # TODO: may want to make ddw a user-defined parameter
-            dz = self.get_next_beam_point(q_param, 1e-3)  # get next segment distance
+            dz = self.get_next_beam_point(q_param, 1e-2)  # get next segment distance
             dz = min(dz, self.distance - current_position)  # clip to remaining distance
             dz = max(dz, 1e-4)
             # calculate starting and ending radius for segment
@@ -348,6 +352,7 @@ class Beam_Segment(Layout):
         obj.FinalRadius = App.Units.Quantity(f"{final_radius} mm")
         obj.WaistPosition = App.Units.Quantity(f"{self.waist_position} mm")
         obj.RayleighRange = App.Units.Quantity(f"{self.rayleigh_range} mm")
+        obj.Tag = str(self.tag)
 
         obj.purgeTouched()  # prevent triggering recompute
 
@@ -508,7 +513,6 @@ class Beam_Path(Layout):
         # TODO: would be more efficient to only do this downstream from any changes
         for child in obj.Children:
             if hasattr(child.Proxy, 'placed'):
-                print(child.Name)
                 child.Proxy.placed = False
 
         # add initial input beam
@@ -1081,6 +1085,7 @@ class Reflection(Interface):
                     power=incident_beam.power * transmit_ratio,
                     waist_position=waist_position,
                     rayleigh_range=rayleigh_range,
+                    tag = "transmitted",
                 )
                 incident_beam.add(transmitted_beam, origin=local_origin)
                 output_beams.append(transmitted_beam)
@@ -1106,6 +1111,7 @@ class Reflection(Interface):
                 power=incident_beam.power * reflect_ratio,
                 waist_position=waist_position,
                 rayleigh_range=rayleigh_range,
+                tag = "reflected",
             )
             incident_beam.add(reflect_beam, origin=local_origin)
             output_beams.append(reflect_beam)
@@ -1200,6 +1206,7 @@ class Lens(Interface):
             power=incident_beam.power,
             waist_position=waist_position,
             rayleigh_range=rayleigh_range,
+            tag = "transmitted",
         )
         incident_beam.add(output_beam, origin=local_origin)
 
