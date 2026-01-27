@@ -205,18 +205,17 @@ class Layout:
 
         def find_beam(label,tag,obj):
 
-            if hasattr(obj, 'ChildObject') and obj.ChildObject is not None:
-                # Is the object at the end of the current beam the object we are looking for?
-                if obj.ChildObject.FullName == label:
-                    # if so, grab the beam segment after this that matches the requested tag
-                    for beam in obj.Children:
-                        if beam.Tag == tag:
-                            return beam
-            for child in obj.Children:
-                # recursively look at all children of current object
-                recurse = find_beam(label, tag,child)
-                if recurse is not None:
-                    return recurse
+            children = []
+            collect_children(obj, children)
+            for child in children:
+                if hasattr(child, 'ChildObject') and child.ChildObject is not None:
+                    # Is the object at the end of the current beam the object we are looking for?
+                    if child.ChildObject.FullName == label:
+                        # if so, grab the beam segment after this that matches the requested tag
+                        for beam in child.Children:
+                            if beam.Tag == tag:
+                                return beam
+            return None
         return find_beam( self.get_object().FullName, tag, beam_path)
     
 
