@@ -324,7 +324,7 @@ class Beam_Segment(Layout):
             beam_radius,
             App.Vector(*self.direction) * self.distance,
         )
-        shapes.append(sphere)
+        #shapes.append(sphere)
         # fuse all shapes together
         shape = shapes[0]
         for s in shapes[1:]:
