@@ -1,5 +1,6 @@
 import FreeCAD as App
 import numpy as np
+import warnings
 import Part
 
 from PyOpticL.beam_path import Lens, Reflection
@@ -14,6 +15,7 @@ from PyOpticL.utils import (
     import_model,
     subcomponent,
 )
+from PyOpticL import settings
 
 ##########################
 ### Example Components ###
@@ -124,22 +126,47 @@ class bolt:
 
     bolt_dimensions = {
         "4_40": dict(
+            tag = 'imperial',
             clear_diameter=dim(0.12, "in"),
             tap_diameter=dim(0.089, "in"),
             head_diameter=dim(5.5, "mm"),
             head_height=dim(2.5, "mm"),
         ),
         "8_32": dict(
+            tag = 'imperial',
             clear_diameter=dim(0.172, "in"),
             tap_diameter=dim(0.136, "in"),
             head_diameter=dim(7, "mm"),
             head_height=dim(4.4, "mm"),
         ),
         "1/4_20": dict(
+            tag = 'imperial',
             clear_diameter=dim(0.26, "in"),
             tap_diameter=dim(0.201, "in"),
             head_diameter=dim(9.8, "mm"),
             head_height=dim(8, "mm"),
+        ),
+        "M3": dict(
+            tag = 'metric',
+            clear_diameter=dim(3.4, "mm"),
+            tap_diameter=dim(2.5, "mm"),
+            head_diameter=dim(5.5, "mm"),
+            head_height=dim(3, "mm"),
+        ),
+
+        "M4": dict(
+            tag = 'metric',
+            clear_diameter=dim(4.5, "mm"),
+            tap_diameter=dim(3.3, "mm"),
+            head_diameter=dim(7, "mm"),
+            head_height=dim(4, "mm"),
+        ),
+        "M6": dict(
+            tag = 'metric',
+            clear_diameter=dim(6.6, "mm"),
+            tap_diameter=dim(25, "mm"),
+            head_diameter=dim(10, "mm"),
+            head_height=dim(6, "mm"),
         ),
     }
 
@@ -149,7 +176,7 @@ class bolt:
 
     def __init__(
         self,
-        type: str,
+        type: str | list[str],
         length: dim,
         washer_diameter: dim = None,
         countersink: bool = False,
@@ -159,7 +186,6 @@ class bolt:
         slot_length: dim = None,
     ):
 
-        self.type = type
         self.length = length
         self.washer_diameter = washer_diameter
         self.countersink = countersink
@@ -167,6 +193,22 @@ class bolt:
         self.extra_depth = extra_depth
         self.from_top = from_top
         self.slot_length = slot_length
+        
+        # identify hardware matching the users preferences
+        preferred_tag = settings.preferred_bolt_tag
+        bolt_type = None
+        if isinstance(type, list):
+            for i in type:
+                if self.bolt_dimensions[i]['tag'] == preferred_tag:
+                    bolt_type = i
+            if bolt_type is None:
+                bolt_type = type[0]
+        else:
+            bolt_type = type
+
+        if self.bolt_dimensions[bolt_type]['tag'] != preferred_tag:
+            warnings.warn(f"No bolt type with tag '{preferred_tag}' available, defaulting to {bolt_type}")
+        self.type = bolt_type
 
         if countersink and slot_length != None:
             raise ValueError("Bolt does not support both slot and countersink")
@@ -686,7 +728,7 @@ class mirror_mount_k05s1:
                 component=Component(
                     label="Mounting Bolt",
                     definition=bolt(
-                        "8_32",
+                        ["8_32","M4"],
                         length=self.drill_depth + extra_length,
                         from_top=False,
                         extra_depth=0,
