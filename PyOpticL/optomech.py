@@ -3,7 +3,7 @@ import numpy as np
 import warnings
 import Part
 
-from PyOpticL.beam_path import Lens, Reflection
+from PyOpticL.beam_path import Lens, Reflection, Retarder
 from PyOpticL.icons import optic_icon, thorlabs_icon
 from PyOpticL.layout import Component
 from PyOpticL.layout import Dimension as dim
@@ -655,6 +655,81 @@ class polarizing_beam_splitter_cube:
         return part
 
 
+class waveplate:
+    """
+    A waveplate - currently does absolutely nothing to the polarisation
+
+    Args:
+        diameter (float): The diameter of the waveplate
+        thickness (float): The thickness of the waveplate
+        mount_definition (object): The definition of the mount component
+        mount_offset (tuple): The (x, y, z) offset of the mount relative to waveplate origin
+                              If None, defaults to (-thickness, 0, 0)
+        retardance (float): The retardance in waves
+        angle (float): The angle in degrees
+    """
+
+    object_group = "optic"
+    object_icon = optic_icon
+    object_color = (0.5, 0.5, 0.8)
+
+    def __init__(
+        self,
+        diameter: dim,
+        thickness: dim,
+        mount_definition: object = None,
+        mount_offset: tuple = None,
+        retardance: float = None,
+        angle: float = None,
+    ):
+        self.diameter = diameter
+        self.thickness = thickness
+        self.mount_definition = mount_definition
+        self.mount_offset = mount_offset
+        self.retardance = retardance
+        self.angle = angle
+
+
+    def interfaces(self):
+        interfaces = [
+            Retarder(
+                position=(0, 0, 0),
+                rotation=(0, 0, 0),
+                diameter=self.diameter,
+                retardance=self.retardance,
+                angle = self.angle,
+                max_angle=90,
+            ),
+        ]
+        return interfaces
+
+    def subcomponents(self):
+        if self.mount_definition != None:
+            mount_offset = self.mount_offset
+            if mount_offset is None:
+                mount_offset = (-self.thickness, 0, 0)
+            return [
+                subcomponent(
+                    component=Component(
+                        label="Mount",
+                        definition=self.mount_definition,
+                    ),
+                    position=mount_offset,
+                    rotation=(0, 0, 0),
+                )
+            ]
+        else:
+            return []
+
+    def shape(self):
+        part = cylinder_shape(
+            diameter=self.diameter,
+            height=self.thickness,
+            position=(-self.thickness, 0, 0),
+            direction=(1, 0, 0),
+        )
+        return part
+    
 ################################
 ### Custom Adapters / Mounts ###
 ################################
