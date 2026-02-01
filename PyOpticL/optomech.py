@@ -3,7 +3,7 @@ import numpy as np
 import warnings
 import Part
 
-from PyOpticL.beam_path import Lens, Reflection, Retarder
+from PyOpticL.beam_path import Lens, Reflection, Retarder, Dummy, Dump
 from PyOpticL.icons import optic_icon, thorlabs_icon
 from PyOpticL.layout import Component
 from PyOpticL.layout import Dimension as dim
@@ -89,10 +89,11 @@ class baseplate:
     object_icon = ""
     object_color = (0.5, 0.5, 0.5)
 
-    def __init__(self, dimensions: tuple, optical_height: dim):
+    def __init__(self, dimensions: tuple, optical_height: dim, mounting_holes: list = []):
         """Initialize adjustable parameters"""
         self.dimensions = dimensions
         self.optical_height = optical_height
+        self.mounting_holes = mounting_holes
 
     def shape(self):
         part = box_shape(
@@ -101,6 +102,36 @@ class baseplate:
             center=(-1, -1, 1),
         )
         return part
+
+    def subcomponents(self):
+        if settings.metric_hardware:
+            bolt_type = 'M6'
+            spacing = dim(25,'mm')
+        else:
+            bolt_type = "1/4_20"
+            spacing = dim(1, 'in')
+        components = []
+        for position in self.mounting_holes:
+            position = (position[0]*spacing,position[1]*spacing, -self.dimensions[2] - self.optical_height + 20)
+            components.append(
+                subcomponent(
+                component=Component(
+                    label="Mounting Bolt",
+                    definition=bolt(
+                        ["M6"],
+                        length=30,
+                        from_top=False,
+                        extra_depth=0,
+                        clearance=True,
+                    ),
+                ),
+                position=position,
+                rotation=(0, 0, 0),
+            )
+            )
+        return components
+
+
 
 
 ###########################
@@ -164,7 +195,7 @@ class bolt:
         "M6": dict(
             tag = 'metric',
             clear_diameter=dim(6.6, "mm"),
-            tap_diameter=dim(25, "mm"),
+            tap_diameter=dim(5, "mm"),
             head_diameter=dim(10, "mm"),
             head_height=dim(6, "mm"),
         ),
@@ -184,6 +215,7 @@ class bolt:
         extra_depth: dim = dim(5, "mm"),
         from_top: bool = True,
         slot_length: dim = None,
+        clearance: bool = False,
     ):
 
         self.length = length
@@ -193,6 +225,7 @@ class bolt:
         self.extra_depth = extra_depth
         self.from_top = from_top
         self.slot_length = slot_length
+        self.clearance = clearance
         
         # identify hardware matching the users preferences
         preferred_tag = settings.preferred_bolt_tag
@@ -239,10 +272,10 @@ class bolt:
         head_diameter += self.head_tolerance
         if self.slot_length == None:
             part = bolt_shape(
-                diameter=dims["tap_diameter"],
+                diameter=dims["clear_diameter"] if self.clearance else dims["tap_diameter"],
                 height=self.length + self.extra_depth,
                 head_diameter=head_diameter,
-                head_height=dims["head_height"],
+                head_height=dims["head_height"]+100, # pad height to allow for deep countersinks
                 position=(0, 0, 0),
                 direction=(0, 0, -1),
                 countersink=self.countersink,
@@ -250,7 +283,7 @@ class bolt:
             )
         else:
             part = bolt_slot_shape(
-                diameter=dims["tap_diameter"],
+                diameter=dims["clear_diameter"] if self.clearance else dims["tap_diameter"],
                 height=self.length + self.extra_depth,
                 head_diameter=head_diameter,
                 head_height=dims["head_height"],
@@ -790,7 +823,6 @@ class thumbscrew:
     mesh = import_model("thumbscrew")
 
     def drill(self):
-        print("hu")
         part = box_shape(
                 dimensions=(dim(30,'mm'),dim(20,'mm'),dim(20,'mm')), 
                 position= (4,0,0),
@@ -851,4 +883,175 @@ class mirror_mount_k05s1:
                     rotation=(0, 0, 0),
                 )
             )
+        return components
+
+
+class cage_plate_sp02:
+    """
+    16mm Cage plate, model Thorlabs SP02
+
+    Args:
+        drill_depth (float): The depth of the mounting hole
+    """
+
+    object_group = "mount"
+    object_icon = thorlabs_icon
+    object_color = (0.25, 0.25, 0.25)
+
+    mesh = import_model("thorlabs_sp02")
+    bolt_position = (1.524, 0.000, -12.497)
+
+    def __init__(self, drill_depth: dim):
+        self.drill_depth = drill_depth
+
+    def subcomponents(self):
+        position = (self.bolt_position[0],self.bolt_position[1],self.bolt_position[2]-8)
+        components = [
+            subcomponent(
+                component=Component(
+                    label="Mounting Bolt",
+                    definition=bolt(
+                        ["M3", "4_40"],
+                        length=self.drill_depth,
+                        from_top=False,
+                        extra_depth=0,
+                        clearance=True,
+                    ),
+                ),
+                position=position,
+                rotation=(180, 0, 0),
+            )
+        ]
+        
+        return components
+
+class fiber_collimator:
+    """
+    A spherical lens component
+
+    Args:
+        diameter (float): The optical diameter of the collimator
+        focal_length (float): The focal length of the collimator
+        mount_definition (object): The definition of the mount component
+        mount_offset (tuple): The (x, y, z) offset of the mount relative to lens origin
+                              If None, defaults to (0, 0, 0)
+    """
+
+    object_group = "optic"
+    object_icon = optic_icon
+    object_color = (0.5, 0.5, 0.8)
+    object_transparency = 75
+
+    def __init__(
+        self,
+        diameter: dim,
+        focal_length: dim,
+        mount_definition: object = None,
+        mount_offset: tuple = None,
+        style: str = 'Thorlabs'
+    ):
+        self.diameter = diameter
+        self.focal_length = focal_length
+        self.mount_definition = mount_definition
+        self.mount_offset = mount_offset
+        if style == 'Thorlabs':
+            self.mesh = import_model("TL_collimator_APC")
+
+    def interfaces(self):
+        return [
+            Lens(
+                position=(0, 0, 0),
+                rotation=(0, 0, 0),
+                diameter=self.diameter,
+                focal_length=self.focal_length,
+            ),
+            Dump(
+                position=(self.focal_length, 0, 0),
+                rotation=(0, 0, 0),
+                diameter=self.diameter,
+            )
+
+        ]
+
+    def subcomponents(self):
+        if self.mount_definition != None:
+            mount_offset = self.mount_offset
+            if mount_offset is None:
+                mount_offset = (0, 0, 0)
+            return [
+                subcomponent(
+                    component=Component(
+                        label="Mount",
+                        definition=self.mount_definition,
+                    ),
+                    position=mount_offset,
+                    rotation=(0, 0, 0),
+                )
+            ]
+        else:
+            return []
+
+
+
+
+
+
+class isolator_thorlabs_io4vlp:
+    """
+    Thorlas IO-4-xxxx-VLP isolator
+
+    Args:
+        diameter (float): The optical diameter of the collimator
+        mount_definition (object): The definition of the mount component
+        mount_offset (tuple): The (x, y, z) offset of the mount relative to lens origin
+                              If None, defaults to (0, 0, 0)
+    """
+
+    object_group = "optic"
+    object_icon = optic_icon
+    object_color = (0.5, 0.5, 0.8)
+    object_transparency = 0
+
+    mount_position = (-7.620, -0.013, -17.145)
+
+    def __init__(
+        self,
+        diameter: dim = 4,
+        mount_definition: object = None,
+        mount_offset: tuple = None,
+        style: str = 'Thorlabs'
+    ):
+        self.diameter = diameter
+        self.mount_definition = mount_definition
+        self.mount_offset = mount_offset
+        self.mesh = import_model("thorlabs_io_4_xxx_vlp")
+
+    def interfaces(self):
+        return [
+            Dummy(
+                position=(0, 0, 0),
+                rotation=(0, 0, 0),
+                diameter=self.diameter,
+            )
+
+        ]
+
+    def subcomponents(self):
+        components = [
+            subcomponent(
+                component=Component(
+                    label="Mounting Bolt",
+                    definition=bolt(
+                        ["8_32","M4"],
+                        length=16,
+                        from_top=False,
+                        extra_depth=0,
+                        clearance=True,
+                    ),
+                ),
+                position=(self.mount_position[0],self.mount_position[1], self.mount_position[2]-6),
+                rotation=(180, 0, 0),
+            )
+        ]
+
         return components
