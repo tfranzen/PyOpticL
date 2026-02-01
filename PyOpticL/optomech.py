@@ -776,6 +776,31 @@ class waveplate:
 ###########################
 
 
+
+class thumbscrew:
+    """
+    Thumbscrew
+
+    """
+
+    object_group = "mount"
+    object_icon = thorlabs_icon
+    object_color = (0.25, 0.25, 0.25)
+
+    mesh = import_model("thumbscrew")
+
+    def drill(self):
+        print("hu")
+        part = box_shape(
+                dimensions=(dim(30,'mm'),dim(20,'mm'),dim(20,'mm')), 
+                position= (4,0,0),
+                center=(1, 0, 0),
+                fillet = 5,
+        )
+        return part
+        
+
+
 class mirror_mount_k05s1:
     """
     Mirror mount, model K05S1
