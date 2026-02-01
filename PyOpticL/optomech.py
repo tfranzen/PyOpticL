@@ -83,6 +83,9 @@ class baseplate:
 
     Args:
         dimensions (tuple): The (x, y, z) dimensions of the baseplate
+        optical_height (dimension): beam height over baseplate
+        mounting_holes (list): locations for counterbored holes for mounting to the optical table, in unit of
+        1 in / 25mm depending on the system chosen in settings
     """
 
     object_group = "baseplate"
@@ -153,6 +156,7 @@ class bolt:
         extra_depth (float): Extra depth to add to the drilled hole
         from_top (bool): Whether the origin is at the top or bottom of the bolt head
         slot_length (float): Length of slot drilling a slot, None for no slot
+        clearance (bool): Drill clearance holes rather than tapped holes
     """
 
     bolt_dimensions = {
