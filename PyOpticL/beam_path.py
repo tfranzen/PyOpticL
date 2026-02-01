@@ -326,6 +326,10 @@ class Beam_Segment(Layout):
         )
         #shapes.append(sphere)
         # fuse all shapes together
+        if len(shapes) == 0:
+            obj.Shape = sphere
+            return
+
         shape = shapes[0]
         for s in shapes[1:]:
             shape = shape.fuse(s)
@@ -1319,6 +1323,122 @@ class Retarder(Interface):
 
         return [output_beam]
 
+class Dummy(Interface):
+    """
+    Dummy interface that does not affect beams
+
+    Args:
+        position (tuple): (x, y, z) coordinates
+        rotation (tuple): (angle_x, angle_y, angle_z) rotation in degrees
+        diameter (float): Diameter for circular interface
+        max_angle (float): Maximum angle between incident beam and interface normal in degrees
+        single_sided (bool): Whether the interface is single-sided
+    """
+
+    def __init__(
+        self,
+        position: tuple,
+        rotation: tuple,
+        diameter: dim = None,
+        max_angle: float = 90,
+        single_sided: bool = False,
+    ):
+
+        super().__init__(
+            position=position,
+            rotation=rotation,
+            diameter=diameter,
+            max_angle=max_angle,
+            single_sided=single_sided,
+        )
+
+
+        self.abcd_matrix = [1, 0, 0, 1]
+
+    def get_output_beams(self, incident_beam: Beam_Segment) -> list[Beam_Segment]:
+        """
+        Get the output beams from an incident beam interacting with the interface
+
+        Args:
+            incident_beam (Beam): Incident beam object
+
+        Returns:
+            output_beams (list): List of output Beam objects
+        """
+        #TODO: sure this can be done in a much simpler way...
+        beam_direction = incident_beam.get_global_direction()
+        intercept = self.get_intercept(incident_beam)
+
+        if intercept is None:
+            return []
+
+        local_origin = incident_beam.get_relative_position(intercept)
+        waist_position, rayleigh_range = self.apply_abcd(incident_beam)
+
+        direction = beam_direction  # on-axis beam, no change in direction
+       
+
+        local_direction = incident_beam.get_relative_direction(direction)
+        
+        # generate output beam
+        output_beam = Beam_Segment(
+            index=incident_beam.index,
+            direction= local_direction,
+            wavelength=incident_beam.wavelength,
+            polarization=incident_beam.polarization,
+            power=incident_beam.power,
+            waist_position=waist_position,
+            rayleigh_range=rayleigh_range,
+            tag = "transmitted",
+        )
+        incident_beam.add(output_beam, origin=local_origin)
+
+        return [output_beam]
+    
+class Dump(Interface):
+    """
+    Beam dump interface to terminate beams
+
+    Args:
+        position (tuple): (x, y, z) coordinates
+        rotation (tuple): (angle_x, angle_y, angle_z) rotation in degrees
+        diameter (float): Diameter for circular interface
+        max_angle (float): Maximum angle between incident beam and interface normal in degrees
+        single_sided (bool): Whether the interface is single-sided
+    """
+
+    def __init__(
+        self,
+        position: tuple,
+        rotation: tuple,
+        diameter: dim = None,
+        max_angle: float = 90,
+        single_sided: bool = False,
+    ):
+
+        super().__init__(
+            position=position,
+            rotation=rotation,
+            diameter=diameter,
+            max_angle=max_angle,
+            single_sided=single_sided,
+        )
+
+
+    def get_output_beams(self, incident_beam: Beam_Segment) -> list[Beam_Segment]:
+        """
+        Get the output beams from an incident beam interacting with the interface
+
+        Args:
+            incident_beam (Beam): Incident beam object
+
+        Returns:
+            output_beams (list): List of output Beam objects
+        """
+
+        return []
+
+    
 class Diffraction(Interface):
     """
     Base class for basic diffraction interfaces
