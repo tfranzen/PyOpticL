@@ -639,11 +639,13 @@ class polarizing_beam_splitter_cube:
         ref_polarization: float = 0.0,
         mount_definition: object = None,
         mount_offset: tuple = None,
+        mount_rotation: tuple = None,
     ):
         self.size = size
         self.ref_polarization = ref_polarization
         self.mount_definition = mount_definition
         self.mount_offset = mount_offset
+        self.mount_rotation = mount_rotation
 
     def interfaces(self):
         return [
@@ -661,6 +663,9 @@ class polarizing_beam_splitter_cube:
             mount_offset = self.mount_offset
             if mount_offset is None:
                 mount_offset = (0, 0, -self.size / 2)
+            mount_rotation = self.mount_rotation
+            if mount_rotation is None:
+                mount_rotation = (0,0,0)
             return [
                 subcomponent(
                     component=Component(
@@ -668,7 +673,7 @@ class polarizing_beam_splitter_cube:
                         definition=self.mount_definition,
                     ),
                     position=mount_offset,
-                    rotation=(0, 0, 0),
+                    rotation=mount_rotation,
                 )
             ]
         else:
