@@ -827,7 +827,7 @@ class thumbscrew:
 
     object_group = "mount"
     object_icon = thorlabs_icon
-    object_color = (0.25, 0.25, 0.25)
+    object_color = (0.4, 0., 0.)
 
     mesh = import_model("thumbscrew")
 
@@ -948,7 +948,7 @@ class fiber_collimator:
 
     object_group = "optic"
     object_icon = optic_icon
-    object_color = (0.5, 0.5, 0.8)
+    object_color = (0.25, 0.25, 0.25)
     object_transparency = 75
 
     def __init__(
@@ -1018,7 +1018,7 @@ class isolator_thorlabs_io4vlp:
 
     object_group = "optic"
     object_icon = optic_icon
-    object_color = (0.5, 0.5, 0.8)
+    object_color = (0.25, 0.25, 0.25)
     object_transparency = 0
 
     mount_position = (-7.620, -0.013, -17.145)
@@ -1064,3 +1064,100 @@ class isolator_thorlabs_io4vlp:
         ]
 
         return components
+    
+    def drill(self):
+        part = box_shape(
+                dimensions=(dim(15,'mm'),dim(30,'mm'),dim(20,'mm')), 
+                position= self.mount_position,
+                center=(0, 0, -1),
+                fillet = 5,
+        )
+        
+        return part
+
+
+
+
+class thorlabs_hca3_sm05:
+    """
+    Thorlabs fiber bench cage plate adapter 
+
+    Args:
+        diameter (float): The diameter of the reflector
+        mount_definition (object): The definition of the mount component
+        mount_offset (tuple): The (x, y, z) offset of the mount relative to reflector origin
+                              If None, defaults to (-thickness, 0, 0)
+    """
+
+    object_group = "optic"
+    object_icon = optic_icon
+    object_color = (0.25, 0.25, 0.25)
+
+    mesh = import_model("thorlabs_hca3_sm05")
+
+    bolt_positions = [  (-2.235, 12.700, -20.700),
+                        (-2.235, 0.000, -20.700),
+                        (-2.235, -12.700, -20.700),
+    ]
+
+    pin_positions = [  (-2.235, 12.700/2, -20.700),
+                        (-2.235, -12.700/2, -20.700),
+    ]
+
+    def __init__(
+        self,
+        diameter: dim = 16,
+        mount_definition: object = None,
+        mount_offset: tuple = None,
+    ):
+        self.diameter = diameter
+        self.mount_definition = mount_definition
+        self.mount_offset = mount_offset
+
+
+    def interfaces(self):
+        interfaces = [
+            Dump(
+                position=(0, 0, 0),
+                rotation=(0, 0, 0),
+                diameter=self.diameter,
+                max_angle=180,
+            ),
+        ]
+        return interfaces
+
+    def subcomponents(self):
+        components = []
+        for position in self.bolt_positions:
+            components.append(
+                subcomponent(
+                component=Component(
+                    label="Mounting Bolt",
+                    definition=bolt(
+                        ["8_32","M4"],
+                        length=20,
+                        from_top=False,
+                        extra_depth=0,
+                    ),
+                ),
+                position=position,
+                rotation=(0, -90, 0),
+            )
+            )
+        for position in self.pin_positions:
+            components.append(
+                subcomponent(
+                    component=Component(
+                        label="Alignment Pin",
+                        definition=alignment_pin(
+                            diameter=dim(4, "mm"), length=dim(3, "mm")
+                        ),
+                    ),
+                    position=position,
+                    rotation=(0, -90, 0),
+                )
+            )
+        return components
+
+    
+    
