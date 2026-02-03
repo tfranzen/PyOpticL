@@ -15,6 +15,7 @@ from PyOpticL.utils import (
     import_model,
     subcomponent,
 )
+
 from PyOpticL import settings
 
 ##########################
