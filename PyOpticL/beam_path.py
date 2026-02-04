@@ -823,6 +823,8 @@ class Interface:
         rotation_obj = App.Rotation("XYZ", *rotation)
         self.normal = np.array(rotation_obj.multVec(App.Vector(1, 0, 0)))
 
+        self.transverse = np.array(rotation_obj.multVec(App.Vector(0, 1, 0)))
+
         self.abcd_matrix = [1, 0, 0, 1]  # identity matrix by default
 
         # define bound type
@@ -1478,3 +1480,101 @@ class Diffraction(Interface):
             max_angle=max_angle,
             single_sided=False,
         )
+
+
+class AcoustoOptic(Interface):
+    """
+    Implement acousto-optic diffraction
+
+    Args:
+        position (tuple): (x, y, z) coordinates
+        rotation (tuple): (angle_x, angle_y, angle_z) rotation in degrees
+        diff_angle (float): Diffraction angle
+        diameter (float): Diameter for circular interface
+        sound_velocity (float): velocity of sound in the AO material in m/s - defaults to longitudinal TeO2 
+        rf_frequencies (float, list[float]): list of rf tones to apply
+        orders (int, list[int]): list of orders to generate - defaults to 0th and +1st
+        dx (float): x-distance for rectangular interface
+        dy (float): y-distance for rectangular interface
+        max_angle (float): Maximum angle between incident beam and interface normal in degrees
+    """
+
+    def __init__(
+        self,
+        position: tuple,
+        rotation: tuple,
+        rf_frequencies: float | list[float],
+        sound_velocity: float = 4200, # TeO2
+        orders: list[int] = [0,1],
+        radius: dim = None,
+        width: dim = None,
+        height: dim = None,
+        max_angle: float = 90,
+    ):
+
+        super().__init__(
+            position=position,
+            rotation=rotation,
+            width=width,
+            height=height,
+            max_angle=max_angle,
+            single_sided=False,
+        )
+        self.sound_velocity = sound_velocity
+        self.rf_frequencies = rf_frequencies
+        self.orders = orders
+
+        
+    def get_output_beams(self, incident_beam: Beam_Segment) -> list[Beam_Segment]:
+        """
+        Get the output beams from an incident beam interacting with the interface
+
+        Args:
+            incident_beam (Beam): Incident beam object
+
+        Returns:
+            output_beams (list): List of output Beam objects
+        """
+        output_beams = []
+        beam_direction = incident_beam.get_global_direction()
+        intercept = self.get_intercept(incident_beam)
+
+        if intercept is None:
+            return []
+        local_origin = incident_beam.get_relative_position(intercept)
+        waist_position, rayleigh_range = self.apply_abcd(incident_beam)
+
+        #figure out how many bits will be needed to count the beams
+        num_beams = len(self.orders) * len(self.rf_frequencies)
+        num_bits = int(np.ceil(np.log2(num_beams)))
+        i = 0
+        for freq in self.rf_frequencies:
+            for order in self.orders:
+                
+                photon_k = 2*np.pi/ (incident_beam.wavelength*1e-9)
+                phonon_k = 2*np.pi * freq*1e6 / self.sound_velocity
+
+                direction = beam_direction * photon_k + self.transverse* phonon_k * order
+                direction /= np.linalg.norm(direction)
+
+                local_direction = incident_beam.get_relative_direction(direction)
+                
+                # generate output beam
+                # for now don't update wavelength, polarisation, power
+                #TODO: fix all of these
+
+                output_beam = Beam_Segment(
+                    index=(incident_beam.index<< num_bits) + i,
+                    direction= local_direction,
+                    wavelength=incident_beam.wavelength,
+                    polarization=incident_beam.polarization,
+                    power=incident_beam.power,
+                    waist_position=waist_position,
+                    rayleigh_range=rayleigh_range,
+                    tag = f"diffracted_{order:d}_{freq:.1f}MHz",
+                )
+                incident_beam.add(output_beam, origin=local_origin)
+                output_beams.append(output_beam)
+                i +=1
+
+        return output_beams
