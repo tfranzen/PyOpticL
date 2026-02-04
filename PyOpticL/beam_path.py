@@ -1492,8 +1492,9 @@ class AcoustoOptic(Interface):
         diff_angle (float): Diffraction angle
         diameter (float): Diameter for circular interface
         sound_velocity (float): velocity of sound in the AO material in m/s - defaults to longitudinal TeO2 
-        rf_frequencies (float, list[float]): list of rf tones to apply
-        orders (int, list[int]): list of orders to generate - defaults to 0th and +1st
+        rf_frequencies (list[float]): list of rf tones to apply
+        orders (list[int]): list of orders to generate - defaults to 0th and +1st
+        order_powers (list[float]): relative power in each of the above orders
         dx (float): x-distance for rectangular interface
         dy (float): y-distance for rectangular interface
         max_angle (float): Maximum angle between incident beam and interface normal in degrees
@@ -1506,6 +1507,7 @@ class AcoustoOptic(Interface):
         rf_frequencies: float | list[float],
         sound_velocity: float = 4200, # TeO2
         orders: list[int] = [0,1],
+        order_powers: list[float] = None,
         radius: dim = None,
         width: dim = None,
         height: dim = None,
@@ -1522,7 +1524,10 @@ class AcoustoOptic(Interface):
         )
         self.sound_velocity = sound_velocity
         self.rf_frequencies = rf_frequencies
+        if len(orders) != len(order_powers):
+            raise ValueError("The number of specified powers must match the number of orders")
         self.orders = orders
+        self.order_powers = order_powers
 
         
     def get_output_beams(self, incident_beam: Beam_Segment) -> list[Beam_Segment]:
@@ -1548,8 +1553,10 @@ class AcoustoOptic(Interface):
         num_beams = len(self.orders) * len(self.rf_frequencies)
         num_bits = int(np.ceil(np.log2(num_beams)))
         i = 0
+
+        #loop over all generated beams
         for freq in self.rf_frequencies:
-            for order in self.orders:
+            for k, order in enumerate(self.orders):
                 
                 photon_k = 2*np.pi/ (incident_beam.wavelength*1e-9)
                 phonon_k = 2*np.pi * freq*1e6 / self.sound_velocity
@@ -1560,15 +1567,21 @@ class AcoustoOptic(Interface):
                 local_direction = incident_beam.get_relative_direction(direction)
                 
                 # generate output beam
-                # for now don't update wavelength, polarisation, power
-                #TODO: fix all of these
+                # not changing polarization for now (reasonable for longitudinal mode AOMs)
+                # powers can be specified for each order
+
+                if self.order_powers is not None:
+                    power = self.order_powers[k] *incident_beam.power
+                else:
+                    power = incident_beam.power
+                
 
                 output_beam = Beam_Segment(
                     index=(incident_beam.index<< num_bits) + i,
                     direction= local_direction,
                     wavelength=incident_beam.wavelength,
                     polarization=incident_beam.polarization,
-                    power=incident_beam.power,
+                    power=power,
                     waist_position=waist_position,
                     rayleigh_range=rayleigh_range,
                     tag = f"diffracted_{order:d}_{freq:.1f}MHz",
