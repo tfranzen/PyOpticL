@@ -13,7 +13,7 @@ import numpy as np
 import Part
 from PySide import QtCore, QtGui
 
-from PyOpticL import beam_path, icons, layout, optomech, utils
+from PyOpticL import beam_path, icons, layout, optomech, utils, settings
 
 
 class Rerun_Macro:
@@ -190,6 +190,7 @@ class Reload_Modules:
         reload(layout)
         reload(optomech)
         reload(utils)
+        reload(settings)
         App.Console.PrintMessage("Freecad Optics Modules Reloaded\n")
         return
 

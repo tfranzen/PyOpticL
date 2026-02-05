@@ -136,8 +136,54 @@ class baseplate:
         return components
 
 
+class breadboard(baseplate):
 
+    """
+    Standard optical breadboard
 
+    Args:
+        dimensions (tuple): The (x, y, z) dimensions of the baseplate
+        optical_height (dimension): beam height over baseplate
+        mounting_holes (list): locations for counterbored holes for mounting to the optical table, in unit of
+        1 in / 25mm depending on the system chosen in settings
+        hole_spacing (dimension): spacing between holes
+        render_holes (bool): switch holes on/off to improve render speed during design
+    """
+
+    object_color = (0.2, 0.2, 0.2)
+    def __init__(self, dimensions: tuple, optical_height: dim, mounting_holes: list = [], holespacing: dim = dim(25,'mm'), render_holes = True):
+        """Initialize adjustable parameters"""
+        super().__init__(
+            dimensions = dimensions,
+            optical_height = optical_height,
+            mounting_holes = mounting_holes
+        )
+        self.holespacing = 25
+        self.render_holes = render_holes
+
+    def shape(self):
+        part = box_shape(
+            dimensions=self.dimensions,
+            position=(0, 0, -self.optical_height),
+            center=(-1, -1, 1),
+        )
+        if self.render_holes:
+            holes = []
+            spacing = self.holespacing
+            holes_x = int(self.dimensions[0] / spacing)
+            holes_y = int(self.dimensions[1] / spacing)
+            height = self.dimensions[2]
+            for i in range(holes_x):
+                for j in range(holes_y):
+                    holes.append(
+                        cylinder_shape(diameter=6,
+                                    height =2*height, 
+                                    position = ((.5+i) * spacing, (.5+j)*spacing, -self.optical_height ), 
+                                    rotation = (0,0,0), 
+                                    direction = (0,0,-1) )
+                    )
+            part = part.cut(holes)
+        return part
 ###########################
 ### Hardware Components ###
 ###########################
