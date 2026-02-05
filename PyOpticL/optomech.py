@@ -1161,4 +1161,223 @@ class thorlabs_hca3_sm05:
         return components
 
     
+
+
+
+
+
+
+   # (-3.175, 0.000, -2.845)
+
+   
+class cage_rod:
+    """
+    Cage rod
+
+    Args:
+        diameter (float): Diameter of the pin
+        length (float): Length of the pin
+    """
+
+    object_group = "hardware"
+    object_icon = ""
+    object_color = (0.8, 0.8, 0.8)
+    hole_tolerance = .5
+    depth_tolerance =2
+
+    def __init__(
+        self,
+        length: dim,
+        diameter: dim = dim(4,'mm'),
+    ):
+        self.diameter = diameter
+        self.length = length
+       
+
+    def shape(self):
+        part = cylinder_shape(
+            diameter=self.diameter,
+            height=self.length,
+            position=(0, 0, 0),
+            direction=(1, 0, 0),
+        )
+        return part
+
+    def drill(self):
+        part = cylinder_shape(
+            diameter=self.diameter + self.hole_tolerance,
+            height=self.length + self.depth_tolerance,
+            position=(0, 0, 0),
+            direction=(1, 0, 0),
+        )
+        return part
     
+
+    
+class thorlabs_smb1:
+    """
+    16 mm Cage Mounting Bracket
+
+    """
+
+    object_group = "mounts"
+    object_icon = ""
+    object_color = (0.8, 0.8, 0.8)
+    bolt_positions = [(-3.175, 0.000, -2.845),]
+    mesh = import_model("thorlabs_smb1")
+
+    def subcomponents(self):
+        components = []
+        for position in self.bolt_positions:
+            components.append(
+                subcomponent(
+                component=Component(
+                    label="Mounting Bolt",
+                    definition=bolt(
+                        ["4_40","M3"],
+                        length=16,
+                        from_top=False,
+                        extra_depth=0,
+                    ),
+                ),
+                position=position,
+                rotation=(0, 0, 0),
+            )
+            )
+            return components
+
+
+    
+
+class cage_segment:
+
+    """
+    Segment of 16mm cage system, mounted using SMB1.
+    Use this component as mount for the first element, place any subsequent elements in cage plates
+
+    Args:
+        length (dim): Length of the cage rods
+        overhang (dim): length of cage rod before the first mount
+    """
+    object_group = "mount"
+    object_icon = thorlabs_icon
+    object_color = (0.25, 0.25, 0.25)
+
+    bolt_position = (1.524, 0.000, -12.497)
+
+    def __init__(self, length:dim, overhang:dim = 0, drill_depth: dim=dim(6,'mm')):
+        self.length = length
+        self.overhang = overhang
+        self.drill_depth = drill_depth
+
+    def subcomponents(self):
+        components = [
+            subcomponent(
+                component=Component(
+                    label="Cage plate",
+                    definition=cage_plate_sp02(drill_depth=self.drill_depth,bolt=False),
+                ),
+                position=(0,0,0),
+                rotation=(0, 0, 0),
+            ),
+            subcomponent(
+                component=Component(
+                    label="Cage rod",
+                    definition=cage_rod(self.length),
+                ),
+                position=(-self.overhang -5,-8,-8),
+                rotation=(0, 0, 0),
+            ),
+            subcomponent(
+                component=Component(
+                    label="Cage rod",
+                    definition=cage_rod(self.length),
+                ),
+                position=(-self.overhang -5,8,-8),
+                rotation=(0, 0, 0),
+            ),
+            subcomponent(
+                component=Component(
+                    label="Cage rod",
+                    definition=cage_rod(self.length),
+                ),
+                position=(-self.overhang -5,-8,8),
+                rotation=(0, 0, 0),
+            ),
+            subcomponent(
+                component=Component(
+                    label="Cage rod",
+                    definition=cage_rod(self.length),
+                ),
+                position=(-self.overhang -5,8,8),
+                rotation=(0, 0, 0),
+            ),
+            subcomponent(
+                component=Component(
+                    label="Cage rod",
+                    definition=thorlabs_smb1(),
+                ),
+                position=(15,0,-8),
+                rotation=(0, 0, 0),
+            ),
+
+
+            subcomponent(
+                component=Component(
+                    label="Cage rod",
+                    definition=thorlabs_smb1(),
+                ),
+                position=(self.length-15,0,-8),
+                rotation=(0, 0, 0),
+            ),
+
+
+        ]
+        
+        return components
+
+
+
+
+
+class cage_plate_sp02:
+    """
+    16mm Cage plate, model Thorlabs SP02
+
+    Args:
+        drill_depth (float): The depth of the mounting hole
+    """
+
+    object_group = "mount"
+    object_icon = thorlabs_icon
+    object_color = (0.25, 0.25, 0.25)
+
+    mesh = import_model("thorlabs_sp02")
+    bolt_position = (1.524, 0.000, -12.497)
+
+    def __init__(self, drill_depth: dim, bolt: bool = True):
+        self.drill_depth = drill_depth
+        self.bolt = bolt
+
+    def subcomponents(self):
+        if not self.bolt:
+            return []
+        position = (self.bolt_position[0],self.bolt_position[1],self.bolt_position[2]-8)
+        components = [
+            subcomponent(
+                component=Component(
+                    label="Mounting Bolt",
+                    definition=bolt(
+                        ["M3", "4_40"],
+                        length=self.drill_depth,
+                        from_top=False,
+                        extra_depth=0,
+                        clearance=True,
+                    ),
+                ),
+                position=position,
+                rotation=(180, 0, 0),
+            )
+        ]
+        
+        return components
