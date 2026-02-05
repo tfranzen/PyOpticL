@@ -879,6 +879,19 @@ class Interface:
         rotation = parent_obj.Placement.Rotation
         global_normal = np.array(rotation.multVec(App.Vector(*self.normal)))
         return global_normal
+    
+    def get_global_transverse(self) -> np.ndarray[float]:
+        """
+        Get a horizontal transverse vector of the interface
+
+        Returns:
+            normal (np.ndarray): (x, y, z) normalized transverse vector
+        """
+
+        parent_obj = self.parent.get_object()
+        rotation = parent_obj.Placement.Rotation
+        global_transverse = np.array(rotation.multVec(App.Vector(*self.transverse)))
+        return global_transverse
 
     def apply_abcd(self, incident_beam: Beam_Segment) -> tuple[float, float]:
         """
@@ -1561,7 +1574,7 @@ class AcoustoOptic(Interface):
                 photon_k = 2*np.pi/ (incident_beam.wavelength*1e-9)
                 phonon_k = 2*np.pi * freq*1e6 / self.sound_velocity
 
-                direction = beam_direction * photon_k + self.transverse* phonon_k * order
+                direction = beam_direction * photon_k + self.get_global_transverse()* phonon_k * order
                 direction /= np.linalg.norm(direction)
 
                 local_direction = incident_beam.get_relative_direction(direction)
