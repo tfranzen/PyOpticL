@@ -984,6 +984,60 @@ class mirror_mount_k05s1:
         return components
 
 
+class mirror_mount_c05g:
+    """
+    Fixed mirror mount, polaris C05G
+
+    Args:
+        drill_depth (float): The depth of the mounting hole
+    """
+
+    object_group = "mount"
+    object_icon = thorlabs_icon
+    object_color = (0.25, 0.25, 0.25)
+
+    mesh = import_model("polaris_c05g")
+
+    mount_position = (0, 0.000, -12.700)
+    bolt_position = (-6.350, -0.000, -8.890)
+    pin_positions = [(-6.350, -5.000, -12.700), (-6.350, 5.000, -12.700)]
+
+    def __init__(self, drill_depth: dim):
+        self.drill_depth = drill_depth
+
+    def subcomponents(self):
+        extra_length = self.bolt_position[2] - self.mount_position[2]
+        components = [
+            subcomponent(
+                component=Component(
+                    label="Mounting Bolt",
+                    definition=bolt(
+                        ["8_32","M4"],
+                        length=self.drill_depth + extra_length,
+                        from_top=False,
+                        extra_depth=0,
+                    ),
+                ),
+                position=self.bolt_position,
+                rotation=(0, 0, 0),
+            )
+        ]
+        for position in self.pin_positions:
+            components.append(
+                subcomponent(
+                    component=Component(
+                        label="Alignment Pin",
+                        definition=alignment_pin(
+                            diameter=dim(1.9, "mm"), length=dim(4, "mm")
+                        ),
+                    ),
+                    position=position,
+                    rotation=(0, 0, 0),
+                )
+            )
+        return components
+
+
 class cage_plate_sp02:
     """
     16mm Cage plate, model Thorlabs SP02
