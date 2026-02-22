@@ -1463,3 +1463,69 @@ class cage_plate_sp02:
         ]
         
         return components
+
+
+
+class thorlabs_bbd05:
+    """
+    Thorlabs 1/2 in D mirror
+
+    Args:
+        
+        mount_definition (object): The definition of the mount component
+        mount_offset (tuple): The (x, y, z) offset of the mount relative to reflector origin
+                              If None, defaults to (-thickness, 0, 0)
+    """
+
+    object_group = "optic"
+    object_icon = optic_icon
+    object_color = (0.5, 0.5, 0.8)
+
+    mesh = import_model("thorlabs_bbd05")
+    diameter = dim(0.5, 'in')
+    thickness = dim(6, 'mm')
+
+    def __init__(
+        self,
+        mount_definition: object = None,
+        mount_offset: tuple = None,
+        
+    ):
+
+        self.mount_definition = mount_definition
+        self.mount_offset = mount_offset
+        
+
+    def interfaces(self):
+        interfaces = [
+            Reflection(
+                position=(0, 0, 0),
+                rotation=(0, 0, 0),
+                diameter=self.diameter,
+                ref_ratio=1,
+                max_angle=90,
+                d_mirror = True,
+            ),
+        ]
+
+        return interfaces
+
+    def subcomponents(self):
+        if self.mount_definition != None:
+            mount_offset = self.mount_offset
+            if mount_offset is None:
+                mount_offset = (-self.thickness, 0, 0)
+            return [
+                subcomponent(
+                    component=Component(
+                        label="Mount",
+                        definition=self.mount_definition,
+                    ),
+                    position=mount_offset,
+                    rotation=(0, 0, 0),
+                )
+            ]
+        else:
+            return []
+
+    
