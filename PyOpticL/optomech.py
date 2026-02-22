@@ -93,11 +93,13 @@ class baseplate:
     object_icon = ""
     object_color = (0.5, 0.5, 0.5)
 
-    def __init__(self, dimensions: tuple, optical_height: dim, mounting_holes: list = []):
+    def __init__(self, dimensions: tuple, optical_height: dim, mounting_holes: list = [], speedholes = False, speedholes_topsheet =12.5):
         """Initialize adjustable parameters"""
         self.dimensions = dimensions
         self.optical_height = optical_height
         self.mounting_holes = mounting_holes
+        self.speedholes = speedholes
+        self.speedholes_topsheet = speedholes_topsheet
 
     def shape(self):
         part = box_shape(
@@ -105,6 +107,43 @@ class baseplate:
             position=(0, 0, -self.optical_height),
             center=(-1, -1, 1),
         )
+
+
+        if self.speedholes:
+            # reduce weight by cutting out part of the material from the bottom
+            top_sheet = self.speedholes_topsheet
+            ribs = 8 # rib wall thickness
+            cutter = 25 # cutter diameter
+
+            #work out number of pockets (along y only for now)
+            n_y = int(np.floor((self.dimensions[1] - ribs) / (ribs + cutter)))
+            size_y = (self.dimensions[1] - ribs) / n_y   - ribs
+
+            # work out relevant dimensions for mounting bolts
+            if settings.metric_hardware:
+                bolt_type = 'M6'
+                spacing = dim(25,'mm')
+            else:
+                bolt_type = "1/4_20"
+                spacing = dim(1, 'in')
+            bolt_head_diameter = bolt.bolt_dimensions[bolt_type]['head_diameter']
+
+            for i in range(n_y):
+
+                # skip any cutouts that would interfere with a mounting hole
+                if any([ribs+ i*(ribs+size_y) - bolt_head_diameter <  a[1]*spacing < ribs+ (i+1)*(ribs+size_y)+bolt_head_diameter for a in self.mounting_holes]):
+                    continue
+
+                # else apply cutout
+                cutout = box_shape(
+                    dimensions=(self.dimensions[0] - 2*ribs, size_y, self.dimensions[2] - top_sheet),
+                    position=(ribs, ribs+ i*(ribs+size_y) , -self.optical_height - top_sheet),
+                    center=(-1, -1, 1),
+                    fillet = cutter/2,
+                    fillet_direction=(0,0,1)
+                )
+                part = part.cut(cutout)
+
         return part
 
     def subcomponents(self):
@@ -1268,7 +1307,7 @@ class thorlabs_smb1:
 
     object_group = "mounts"
     object_icon = ""
-    object_color = (0.8, 0.8, 0.8)
+    object_color = (0.25, 0.25, 0.25)
     bolt_positions = [(-3.175, 0.000, -2.845),]
     mesh = import_model("thorlabs_smb1")
 
@@ -1311,10 +1350,14 @@ class cage_segment:
 
     bolt_position = (1.524, 0.000, -12.497)
 
-    def __init__(self, length:dim, overhang:dim = 0, drill_depth: dim=dim(6,'mm')):
+    def __init__(self, length:dim, overhang:dim = 0, drill_depth: dim=dim(6,'mm'), bracket_positions: list[float] = None):
         self.length = length
         self.overhang = overhang
         self.drill_depth = drill_depth
+        if bracket_positions is None:
+            bracket_positions = [15, length-15]
+        self.bracket_positions = bracket_positions
+        
 
     def subcomponents(self):
         components = [
@@ -1358,28 +1401,18 @@ class cage_segment:
                 position=(-self.overhang -5,8,8),
                 rotation=(0, 0, 0),
             ),
-            subcomponent(
-                component=Component(
-                    label="Cage rod",
-                    definition=thorlabs_smb1(),
-                ),
-                position=(15,0,-8),
-                rotation=(0, 0, 0),
-            ),
-
-
-            subcomponent(
-                component=Component(
-                    label="Cage rod",
-                    definition=thorlabs_smb1(),
-                ),
-                position=(self.length-15,0,-8),
-                rotation=(0, 0, 0),
-            ),
-
-
         ]
-        
+
+        for pos in self.bracket_positions:
+            components.append(subcomponent(
+                component=Component(
+                    label="Cage bracket",
+                    definition=thorlabs_smb1(),
+                ),
+                position=(pos,0,-8),
+                rotation=(0, 0, 0),
+            ))
+
         return components
 
 
