@@ -130,7 +130,11 @@ class baseplate:
             for end in boundaries_y:
                 #work out number of pockets
                 length = end-start
-                n_y = int(np.floor((length - ribs) / (ribs + cutter)))
+
+                # aim for cutouts twice the cutterdiameter
+                n_y = int(np.floor((length - ribs) / (ribs + 2*cutter)))
+                if n_y == 0: # if that doesn't fit we'll take down to a single cutter diameter
+                    n_y = int(np.floor((length - ribs) / (ribs + cutter)))
                 size_y = (length - ribs) / n_y   - ribs
 
                 for i in range(n_y):
