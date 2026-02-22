@@ -115,35 +115,34 @@ class baseplate:
             ribs = 8 # rib wall thickness
             cutter = 25 # cutter diameter
 
-            #work out number of pockets (along y only for now)
-            n_y = int(np.floor((self.dimensions[1] - ribs) / (ribs + cutter)))
-            size_y = (self.dimensions[1] - ribs) / n_y   - ribs
-
             # work out relevant dimensions for mounting bolts
             if settings.metric_hardware:
-                bolt_type = 'M6'
                 spacing = dim(25,'mm')
             else:
-                bolt_type = "1/4_20"
                 spacing = dim(1, 'in')
-            bolt_head_diameter = bolt.bolt_dimensions[bolt_type]['head_diameter']
+            
+            #need to work around mounting bolt positions
+            boundaries_y = [self.dimensions[1]]
+            boundaries_y.extend(np.unique([d[1]*spacing for d in self.mounting_holes]))
+            boundaries_y = sorted(boundaries_y)
 
-            for i in range(n_y):
+            start = 0
+            for end in boundaries_y:
+                #work out number of pockets
+                length = end-start
+                n_y = int(np.floor((length - ribs) / (ribs + cutter)))
+                size_y = (length - ribs) / n_y   - ribs
 
-                # skip any cutouts that would interfere with a mounting hole
-                if any([ribs+ i*(ribs+size_y) - bolt_head_diameter <  a[1]*spacing < ribs+ (i+1)*(ribs+size_y)+bolt_head_diameter for a in self.mounting_holes]):
-                    continue
-
-                # else apply cutout
-                cutout = box_shape(
-                    dimensions=(self.dimensions[0] - 2*ribs, size_y, self.dimensions[2] - top_sheet),
-                    position=(ribs, ribs+ i*(ribs+size_y) , -self.optical_height - top_sheet),
-                    center=(-1, -1, 1),
-                    fillet = cutter/2,
-                    fillet_direction=(0,0,1)
-                )
-                part = part.cut(cutout)
-
+                for i in range(n_y):
+                    cutout = box_shape(
+                        dimensions=(self.dimensions[0] - 2*ribs, size_y, self.dimensions[2] - top_sheet),
+                        position=(ribs, start + ribs+ i*(ribs+size_y) , -self.optical_height - top_sheet),
+                        center=(-1, -1, 1),
+                        fillet = cutter/2,
+                        fillet_direction=(0,0,1)
+                    )
+                    part = part.cut(cutout)
+                start = end 
         return part
 
     def subcomponents(self):
