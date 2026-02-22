@@ -336,6 +336,7 @@ class Component(Layout):
                 for child in obj.Parent.Children:
                     if child != obj:
                         drill_objs.append(child)
+                        collect_children(child, drill_objs)
 
             # gather child objects recursively
             collect_children(obj, drill_objs)
