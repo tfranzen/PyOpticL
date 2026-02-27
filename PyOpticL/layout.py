@@ -332,20 +332,29 @@ class Component(Layout):
 
             # gather peer objects
             drill_objs = []
-            if obj.Parent != None:
-                for child in obj.Parent.Children:
-                    if child != obj:
-                        drill_objs.append(child)
-                        collect_children(child, drill_objs)
+            if not hasattr(obj.Proxy, 'no_drill'):
+                if obj.Parent != None:
+                    for child in obj.Parent.Children:
+                        if child != obj:
+                            drill_objs.append(child)
+                            collect_children(child, drill_objs)
 
-            # gather child objects recursively
-            collect_children(obj, drill_objs)
+                # gather child objects recursively
+                collect_children(obj, drill_objs)
 
+                
             # apply drilling
             for drill_obj in drill_objs:
                 if hasattr(drill_obj.Proxy, "drill"):
                     drill_obj.Proxy.compute_placement()
-                    drill_shape = drill_obj.Proxy.drill()
+
+                    # separate shape can be used to drill an objects immediate parent
+                    drilling_parent = (obj == drill_obj.Parent)
+                    if drilling_parent and hasattr(drill_obj.Proxy, 'drill_parent'):
+                        drill_shape = drill_obj.Proxy.drill_parent()
+                    else:
+                        drill_shape = drill_obj.Proxy.drill()
+
                     drill_shape.Placement = (
                         obj.Placement.inverse() * drill_obj.Placement
                     )

@@ -246,6 +246,7 @@ class bolt:
         from_top (bool): Whether the origin is at the top or bottom of the bolt head
         slot_length (float): Length of slot drilling a slot, None for no slot
         clearance (bool): Drill clearance holes rather than tapped holes
+        auto_diameter (bool): Drill clearance hole in immediate parent object, tapped holes in others
     """
 
     bolt_dimensions = {
@@ -298,6 +299,8 @@ class bolt:
     object_icon = ""
     object_color = (0.8, 0.8, 0.8)
 
+    no_drill = True # prevent drilling of fasteners
+
     def __init__(
         self,
         type: str | list[str],
@@ -309,6 +312,7 @@ class bolt:
         from_top: bool = True,
         slot_length: dim = None,
         clearance: bool = False,
+        auto_diameter: bool = False,
     ):
 
         self.length = length
@@ -319,6 +323,7 @@ class bolt:
         self.from_top = from_top
         self.slot_length = slot_length
         self.clearance = clearance
+        self.auto_diameter = auto_diameter
         
         # identify hardware matching the users preferences
         preferred_tag = settings.preferred_bolt_tag
@@ -341,14 +346,19 @@ class bolt:
 
         if washer_diameter != 0 and countersink:
             raise ValueError("Bolt does not support both washer and countersink")
+        
+        dims = self.bolt_dimensions[self.type]
+        self.tap_diameter = dims["tap_diameter"]
+        self.head_diameter = dims["head_diameter"]
+        self.head_height = dims["head_height"]
+        self.clear_diameter = dims["clear_diameter"]
 
     def shape(self):
-        dims = self.bolt_dimensions[self.type]
         part = bolt_shape(
-            diameter=dims["tap_diameter"],
+            diameter=self.tap_diameter,
             height=self.length,
-            head_diameter=dims["head_diameter"],
-            head_height=dims["head_height"],
+            head_diameter=self.head_diameter,
+            head_height=self.head_height,
             position=(0, 0, 0),
             direction=(0, 0, -1),
             countersink=self.countersink,
@@ -357,18 +367,23 @@ class bolt:
         return part
 
     def drill(self):
-        dims = self.bolt_dimensions[self.type]
         if self.washer_diameter != None:
             head_diameter = self.washer_diameter
         else:
-            head_diameter = dims["head_diameter"]
+            head_diameter = self.head_diameter
         head_diameter += self.head_tolerance
+
+        if self.clearance:
+            drill_diameter = self.clear_diameter
+        else:
+            drill_diameter = self.tap_diameter
+
         if self.slot_length == None:
             part = bolt_shape(
-                diameter=dims["clear_diameter"] if self.clearance else dims["tap_diameter"],
+                diameter=drill_diameter,
                 height=self.length + self.extra_depth,
                 head_diameter=head_diameter,
-                head_height=dims["head_height"]+100, # pad height to allow for deep countersinks
+                head_height=self.head_height, 
                 position=(0, 0, 0),
                 direction=(0, 0, -1),
                 countersink=self.countersink,
@@ -376,10 +391,46 @@ class bolt:
             )
         else:
             part = bolt_slot_shape(
-                diameter=dims["clear_diameter"] if self.clearance else dims["tap_diameter"],
+                diameter=drill_diameter,
                 height=self.length + self.extra_depth,
                 head_diameter=head_diameter,
-                head_height=dims["head_height"],
+                head_height=self.head_height,
+                slot_length=self.slot_length,
+                position=(0, 0, 0),
+                direction=(0, 0, -1),
+                from_top=self.from_top,
+            )
+        return part
+    
+    def drill_parent(self):
+        if self.washer_diameter != None:
+            head_diameter = self.washer_diameter
+        else:
+            head_diameter = self.head_diameter
+        head_diameter += self.head_tolerance
+
+        if self.clearance or self.auto_diameter :
+            drill_diameter = self.clear_diameter
+        else:
+            drill_diameter = self.tap_diameter
+
+        if self.slot_length == None:
+            part = bolt_shape(
+                diameter=drill_diameter,
+                height=self.length + self.extra_depth,
+                head_diameter=head_diameter,
+                head_height=self.head_height+100, # pad height to allow for deep countersinks
+                position=(0, 0, 0),
+                direction=(0, 0, -1),
+                countersink=self.countersink,
+                from_top=self.from_top,
+            )
+        else:
+            part = bolt_slot_shape(
+                diameter=drill_diameter,
+                height=self.length + self.extra_depth,
+                head_diameter=head_diameter,
+                head_height=self.head_height,
                 slot_length=self.slot_length,
                 position=(0, 0, 0),
                 direction=(0, 0, -1),
@@ -900,6 +951,77 @@ class waveplate:
 #     def shape(self):
 #         width = self.bolt_spacing + 2 * self.bolt_walls
 #         length = min(self.min_width
+
+
+class surface_adapter:
+    """
+    Adapter for post mounted components
+
+    Args:
+        drill_depth (dim): depth of tapped holes
+        hole_spacing (dim): spacing between the two mounting holes
+        height (dim): adapter height
+        length (dim): length (along beam) of the adapter
+        bolt_type (str | list[str]): bolt type for mounting adapter to baseplate
+    """
+
+    object_group = "adapter"
+    object_color = (0.25, 0.25, 0.25)
+
+    def __init__(self, drill_depth: dim, hole_spacing: dim = dim(25,'mm'), height: dim = dim(10,'mm'), length: dim = dim(10,'mm'), bolt_type = ["M3", "4_40"]):
+        self.drill_depth = drill_depth
+        self.hole_spacing = hole_spacing
+        self.height = height
+        self.length = length
+        self.bolt = bolt(
+                        bolt_type,
+                        length=self.drill_depth + self.height,
+                        from_top=False,
+                        extra_depth=0,
+                        auto_diameter=True,
+                    )
+
+    def shape(self):
+        part = box_shape(
+            dimensions=(self.length, self.hole_spacing + 2*self.bolt.head_diameter,  self.height),
+            position=(0, 0, 0),
+            center=(0, 0, 1),
+            fillet = 4
+        )
+        return part
+    
+    def drill(self):
+        clearance = 2
+        part = box_shape(
+            dimensions=(self.length +clearance,self.hole_spacing + 2*self.bolt.head_diameter + clearance, 2*self.height),
+            position=(0, 0, 0),
+            center=(0, 0, 0),
+            fillet = 4 + clearance
+        )
+        return part
+    
+    def subcomponents(self):
+        components = [
+            subcomponent(
+                component=Component(
+                    label="Mounting Bolt",
+                    definition=self.bolt,
+                ),
+                position=(0, - self.hole_spacing/2, -self.bolt.head_height),
+                rotation=(0, 0, 0),
+            ),
+            subcomponent(
+                component=Component(
+                    label="Mounting Bolt",
+                    definition=self.bolt,
+                ),
+                position=(0, + self.hole_spacing/2, -self.bolt.head_height),
+                rotation=(0, 0, 0),
+            )
+        ]
+        return components
+
+
 
 
 ###########################
