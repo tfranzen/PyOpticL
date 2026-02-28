@@ -168,7 +168,7 @@ class baseplate:
                         length=30,
                         from_top=False,
                         extra_depth=0,
-                        clearance=True,
+                        auto_diameter=True,
                     ),
                 ),
                 position=position,
