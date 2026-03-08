@@ -93,7 +93,7 @@ class baseplate:
     object_icon = ""
     object_color = (0.5, 0.5, 0.5)
 
-    def __init__(self, dimensions: tuple, optical_height: dim, mounting_holes: list = [], speedholes = False, speedholes_topsheet =12.5):
+    def __init__(self, dimensions: tuple, optical_height: dim, mounting_holes: list = [], speedholes = False, speedholes_topsheet =15):
         """Initialize adjustable parameters"""
         self.dimensions = dimensions
         self.optical_height = optical_height
@@ -132,9 +132,13 @@ class baseplate:
                 length = end-start
 
                 # aim for cutouts twice the cutterdiameter
-                n_y = int(np.floor((length - ribs) / (ribs + 2*cutter)))
+                n_y = (length - ribs) // (ribs + 2*cutter)
                 if n_y == 0: # if that doesn't fit we'll take down to a single cutter diameter
-                    n_y = int(np.floor((length - ribs) / (ribs + cutter)))
+                    n_y = (length - ribs) // (ribs + cutter)
+                if n_y == 0: # still no room, so skip this range
+                    start = end
+                    continue
+
                 size_y = (length - ribs) / n_y   - ribs
 
                 for i in range(n_y):
