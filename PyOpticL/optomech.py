@@ -8,12 +8,12 @@ from PyOpticL.icons import optic_icon, thorlabs_icon
 from PyOpticL.layout import Component
 from PyOpticL.layout import Dimension as dim
 from PyOpticL.utils import (
+    Subcomponent,
     bolt_shape,
     bolt_slot_shape,
     box_shape,
     cylinder_shape,
     import_model,
-    subcomponent,
 )
 
 from PyOpticL import settings
@@ -49,10 +49,10 @@ class example_component:
         self.height = height
         self.drill_depth = drill_depth
 
-    def subcomponents(self) -> list[subcomponent]:
+    def Subcomponents(self) -> list[Subcomponent]:
         """Define any sub-components"""
         return [
-            subcomponent(
+            Subcomponent(
                 component=Component(
                     "Mounting Bolt",
                     bolt("8_32", length=self.height + self.drill_depth),
@@ -132,9 +132,9 @@ class baseplate:
                 length = end-start
 
                 # aim for cutouts twice the cutterdiameter
-                n_y = (length - ribs) // (ribs + 2*cutter)
+                n_y = int((length - ribs) // (ribs + 2*cutter))
                 if n_y == 0: # if that doesn't fit we'll take down to a single cutter diameter
-                    n_y = (length - ribs) // (ribs + cutter)
+                    n_y = int((length - ribs) // (ribs + cutter))
                 if n_y == 0: # still no room, so skip this range
                     start = end
                     continue
@@ -153,7 +153,7 @@ class baseplate:
                 start = end 
         return part
 
-    def subcomponents(self):
+    def Subcomponents(self):
         if settings.metric_hardware:
             bolt_type = 'M6'
             spacing = dim(25,'mm')
@@ -164,7 +164,7 @@ class baseplate:
         for position in self.mounting_holes:
             position = (position[0]*spacing,position[1]*spacing, -self.dimensions[2] - self.optical_height + 20)
             components.append(
-                subcomponent(
+                Subcomponent(
                 component=Component(
                     label="Mounting Bolt",
                     definition=bolt(
@@ -570,13 +570,13 @@ class circular_reflector:
 
         return interfaces
 
-    def subcomponents(self):
+    def Subcomponents(self):
         if self.mount_definition != None:
             mount_offset = self.mount_offset
             if mount_offset is None:
                 mount_offset = (-self.thickness, 0, 0)
             return [
-                subcomponent(
+                Subcomponent(
                     component=Component(
                         label="Mount",
                         definition=self.mount_definition,
@@ -732,13 +732,13 @@ class spherical_lens:
             )
         ]
 
-    def subcomponents(self):
+    def Subcomponents(self):
         if self.mount_definition != None:
             mount_offset = self.mount_offset
             if mount_offset is None:
                 mount_offset = (0, 0, 0)
             return [
-                subcomponent(
+                Subcomponent(
                     component=Component(
                         label="Mount",
                         definition=self.mount_definition,
@@ -802,7 +802,7 @@ class polarizing_beam_splitter_cube:
             )
         ]
 
-    def subcomponents(self):
+    def Subcomponents(self):
         if self.mount_definition != None:
             mount_offset = self.mount_offset
             if mount_offset is None:
@@ -811,7 +811,7 @@ class polarizing_beam_splitter_cube:
             if mount_rotation is None:
                 mount_rotation = (0,0,0)
             return [
-                subcomponent(
+                Subcomponent(
                     component=Component(
                         label="Mount",
                         definition=self.mount_definition,
@@ -889,13 +889,13 @@ class waveplate:
         ]
         return interfaces
 
-    def subcomponents(self):
+    def Subcomponents(self):
         if self.mount_definition != None:
             mount_offset = self.mount_offset
             if mount_offset is None:
                 mount_offset = (-self.thickness, 0, 0)
             return [
-                subcomponent(
+                Subcomponent(
                     component=Component(
                         label="Mount",
                         definition=self.mount_definition,
@@ -1004,9 +1004,9 @@ class surface_adapter:
         )
         return part
     
-    def subcomponents(self):
+    def Subcomponents(self):
         components = [
-            subcomponent(
+            Subcomponent(
                 component=Component(
                     label="Mounting Bolt",
                     definition=self.bolt,
@@ -1014,7 +1014,7 @@ class surface_adapter:
                 position=(0, - self.hole_spacing/2, -self.bolt.head_height),
                 rotation=(0, 0, 0),
             ),
-            subcomponent(
+            Subcomponent(
                 component=Component(
                     label="Mounting Bolt",
                     definition=self.bolt,
@@ -1077,10 +1077,10 @@ class mirror_mount_k05s1:
     def __init__(self, drill_depth: dim):
         self.drill_depth = drill_depth
 
-    def subcomponents(self):
+    def Subcomponents(self):
         extra_length = self.bolt_position[2] - self.mount_position[2]
         components = [
-            subcomponent(
+            Subcomponent(
                 component=Component(
                     label="Mounting Bolt",
                     definition=bolt(
@@ -1096,7 +1096,7 @@ class mirror_mount_k05s1:
         ]
         for position in self.pin_positions:
             components.append(
-                subcomponent(
+                Subcomponent(
                     component=Component(
                         label="Alignment Pin",
                         definition=alignment_pin(
@@ -1131,10 +1131,10 @@ class mirror_mount_c05g:
     def __init__(self, drill_depth: dim):
         self.drill_depth = drill_depth
 
-    def subcomponents(self):
+    def Subcomponents(self):
         extra_length = self.bolt_position[2] - self.mount_position[2]
         components = [
-            subcomponent(
+            Subcomponent(
                 component=Component(
                     label="Mounting Bolt",
                     definition=bolt(
@@ -1150,7 +1150,7 @@ class mirror_mount_c05g:
         ]
         for position in self.pin_positions:
             components.append(
-                subcomponent(
+                Subcomponent(
                     component=Component(
                         label="Alignment Pin",
                         definition=alignment_pin(
@@ -1182,10 +1182,10 @@ class cage_plate_sp02:
     def __init__(self, drill_depth: dim):
         self.drill_depth = drill_depth
 
-    def subcomponents(self):
+    def Subcomponents(self):
         position = (self.bolt_position[0],self.bolt_position[1],self.bolt_position[2]-8)
         components = [
-            subcomponent(
+            Subcomponent(
                 component=Component(
                     label="Mounting Bolt",
                     definition=bolt(
@@ -1251,13 +1251,13 @@ class fiber_collimator:
 
         ]
 
-    def subcomponents(self):
+    def Subcomponents(self):
         if self.mount_definition != None:
             mount_offset = self.mount_offset
             if mount_offset is None:
                 mount_offset = (0, 0, 0)
             return [
-                subcomponent(
+                Subcomponent(
                     component=Component(
                         label="Mount",
                         definition=self.mount_definition,
@@ -1314,9 +1314,9 @@ class isolator_thorlabs_io4vlp:
 
         ]
 
-    def subcomponents(self):
+    def Subcomponents(self):
         components = [
-            subcomponent(
+            Subcomponent(
                 component=Component(
                     label="Mounting Bolt",
                     definition=bolt(
@@ -1395,11 +1395,11 @@ class thorlabs_hca3_sm05:
         ]
         return interfaces
 
-    def subcomponents(self):
+    def Subcomponents(self):
         components = []
         for position in self.bolt_positions:
             components.append(
-                subcomponent(
+                Subcomponent(
                 component=Component(
                     label="Mounting Bolt",
                     definition=bolt(
@@ -1415,7 +1415,7 @@ class thorlabs_hca3_sm05:
             )
         for position in self.pin_positions:
             components.append(
-                subcomponent(
+                Subcomponent(
                     component=Component(
                         label="Alignment Pin",
                         definition=alignment_pin(
@@ -1494,11 +1494,11 @@ class thorlabs_smb1:
     bolt_positions = [(-3.175, 0.000, -2.845),]
     mesh = import_model("thorlabs_smb1")
 
-    def subcomponents(self):
+    def Subcomponents(self):
         components = []
         for position in self.bolt_positions:
             components.append(
-                subcomponent(
+                Subcomponent(
                 component=Component(
                     label="Mounting Bolt",
                     definition=bolt(
@@ -1542,9 +1542,9 @@ class cage_segment:
         self.bracket_positions = bracket_positions
         
 
-    def subcomponents(self):
+    def Subcomponents(self):
         components = [
-            subcomponent(
+            Subcomponent(
                 component=Component(
                     label="Cage plate",
                     definition=cage_plate_sp02(drill_depth=self.drill_depth,bolt=False),
@@ -1552,7 +1552,7 @@ class cage_segment:
                 position=(0,0,0),
                 rotation=(0, 0, 0),
             ),
-            subcomponent(
+            Subcomponent(
                 component=Component(
                     label="Cage rod",
                     definition=cage_rod(self.length),
@@ -1560,7 +1560,7 @@ class cage_segment:
                 position=(-self.overhang -5,-8,-8),
                 rotation=(0, 0, 0),
             ),
-            subcomponent(
+            Subcomponent(
                 component=Component(
                     label="Cage rod",
                     definition=cage_rod(self.length),
@@ -1568,7 +1568,7 @@ class cage_segment:
                 position=(-self.overhang -5,8,-8),
                 rotation=(0, 0, 0),
             ),
-            subcomponent(
+            Subcomponent(
                 component=Component(
                     label="Cage rod",
                     definition=cage_rod(self.length),
@@ -1576,7 +1576,7 @@ class cage_segment:
                 position=(-self.overhang -5,-8,8),
                 rotation=(0, 0, 0),
             ),
-            subcomponent(
+            Subcomponent(
                 component=Component(
                     label="Cage rod",
                     definition=cage_rod(self.length),
@@ -1587,7 +1587,7 @@ class cage_segment:
         ]
 
         for pos in self.bracket_positions:
-            components.append(subcomponent(
+            components.append(Subcomponent(
                 component=Component(
                     label="Cage bracket",
                     definition=thorlabs_smb1(),
@@ -1621,12 +1621,12 @@ class cage_plate_sp02:
         self.drill_depth = drill_depth
         self.bolt = bolt
 
-    def subcomponents(self):
+    def Subcomponents(self):
         if not self.bolt:
             return []
         position = (self.bolt_position[0],self.bolt_position[1],self.bolt_position[2]-8)
         components = [
-            subcomponent(
+            Subcomponent(
                 component=Component(
                     label="Mounting Bolt",
                     definition=bolt(
@@ -1690,13 +1690,13 @@ class thorlabs_bbd05:
 
         return interfaces
 
-    def subcomponents(self):
+    def Subcomponents(self):
         if self.mount_definition != None:
             mount_offset = self.mount_offset
             if mount_offset is None:
                 mount_offset = (-self.thickness, 0, 0)
             return [
-                subcomponent(
+                Subcomponent(
                     component=Component(
                         label="Mount",
                         definition=self.mount_definition,
