@@ -187,7 +187,7 @@ class Layout:
         print(f"Recomputing {obj.Name}...")
         self.recompute()
 
-    def get_beam_after(self, tag = "transmitted") -> Beam_Segment:
+    def get_beam_after(self, tag = "transmitted") -> BeamSegment:
         """Locate the beam after this element
 
         Args:

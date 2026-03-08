@@ -116,10 +116,7 @@ class baseplate:
             cutter = 25 # cutter diameter
 
             # work out relevant dimensions for mounting bolts
-            if settings.metric_hardware:
-                spacing = dim(25,'mm')
-            else:
-                spacing = dim(1, 'in')
+            spacing = settings.grid_spacing()
             
             #need to work around mounting bolt positions
             boundaries_y = [self.dimensions[1]]

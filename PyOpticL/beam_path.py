@@ -8,7 +8,7 @@ from PyOpticL.icons import beam_icon
 from PyOpticL.layout import Dimension as dim
 from PyOpticL.layout import Layout
 from PyOpticL.utils import collect_children, wavelength_to_rgb
-
+from PyOpticL import settings
 
 
 class BeamSegment(Layout):
@@ -112,6 +112,7 @@ class BeamSegment(Layout):
         x_position: float = None,
         y_position: float = None,
         z_position: float = None,
+        pad_to_grid: bool = False,
     ) -> np.ndarray[float]:
         """
         Get the position of the beam at a specified distance or coordinate
@@ -121,6 +122,7 @@ class BeamSegment(Layout):
             x_position (float): x-coordinate of the beam position
             y_position (float): y-coordinate of the beam position
             z_position (float): z-coordinate of the beam position
+            pad_to_grid (bool): increase specified distance until beam aligns to grid
 
         Returns:
             position (np.ndarray): (x, y, z) coordinates of the beam position
@@ -146,6 +148,16 @@ class BeamSegment(Layout):
         # calculate position based on specified constraint
         if distance != None:
             output = position + distance * direction
+            if pad_to_grid:
+                axis = np.argmax(np.abs(direction))   # pick the cardinal direction most closely aligned to the beam
+                spacing = settings.grid_spacing()
+
+                target = (output[axis]// spacing) * spacing 
+                if direction[axis] > 0:
+                    target += spacing
+                t = (target - position[axis]) / direction[axis]
+                output = position + t * direction
+
         if x_position != None:
             if direction[0] == 0:
                 raise RuntimeError(
@@ -496,6 +508,7 @@ class BeamPath(Layout):
         z_position: dim = None,
         offset: tuple[dim] = (0, 0),
         interface_index: int = 0,
+        pad_to_grid: bool = False,
     ) -> Layout:
         """
         Add a child layout to the beam path and assign beam index
@@ -510,7 +523,7 @@ class BeamPath(Layout):
             z_position (float): z-coordinate of the beam position
             offset (tuple): (y, z) offset from the center of the interface
             interface_index (int): Index of the interface on the child object to interact with
-
+            pad_to_grid (bool): increase specified distance until beam aligns to grid
         Returns:
             child (Layout): The added child layout
         """
@@ -533,6 +546,7 @@ class BeamPath(Layout):
         child.z_position = z_position
         child.offset = offset
         child.interface_index = interface_index
+        child.pad_to_grid = pad_to_grid
         child.placed = False
 
         return child
@@ -677,6 +691,7 @@ class BeamPath(Layout):
                     proxy.x_position,
                     proxy.y_position,
                     proxy.z_position,
+                    proxy.pad_to_grid,
                 )
             except RuntimeError as e:
                 raise RuntimeError(
