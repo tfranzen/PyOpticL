@@ -355,6 +355,9 @@ class Component(Layout):
                     else:
                         drill_shape = drill_obj.Proxy.drill()
 
+                    if drill_shape is None:
+                        continue
+
                     drill_shape.Placement = (
                         obj.Placement.inverse() * drill_obj.Placement
                     )

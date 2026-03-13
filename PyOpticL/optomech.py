@@ -159,7 +159,7 @@ class baseplate:
             spacing = dim(1, 'in')
         components = []
         for position in self.mounting_holes:
-            position = (position[0]*spacing,position[1]*spacing, -self.dimensions[2] - self.optical_height + 20)
+            position = (position[0]*spacing,position[1]*spacing, -self.dimensions[2] - self.optical_height + 10)
             components.append(
                 Subcomponent(
                 component=Component(
