@@ -411,7 +411,7 @@ class BeamSegment(Layout):
             radius2 = self.get_beam_radius(q_param + dz)
             # create conical section
             # freecad does not support cones with equal radii
-            if isclose(radius1, radius2):
+            if isclose(radius1, radius2, abs_tol=1e-7):
                 shape = Part.makeCylinder(
                     radius1,
                     dz,
