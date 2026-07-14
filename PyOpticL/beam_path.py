@@ -246,6 +246,7 @@ class BeamSegment(Layout):
         if type == "distance":
             output = position + value * direction
             if pad_to_grid:
+                print(output)
                 axis = np.argmax(np.abs(direction))   # pick the cardinal direction most closely aligned to the beam
                 spacing = dim(1, "grid")
 
@@ -254,6 +255,7 @@ class BeamSegment(Layout):
                     target += spacing
                 t = (target - position[axis]) / direction[axis]
                 output = position + t * direction
+                print(output)
         if type == "xPosition":
             if isclose(direction[0], 0):
                 raise RuntimeError(
@@ -617,7 +619,7 @@ class BeamPath(Layout):
             after_object (Layout): Only apply contraint after beam interacts with this object
             offset (tuple): (y, z) offset from the center of the interface
             interface_index (int): Index of the interface on the child object to interact with
-
+            pad_to_grid (bool): align position with grid
         Returns:
             child (Layout): The added child layout
         """
@@ -640,11 +642,13 @@ class BeamPath(Layout):
         child_obj = child.get_object()
         child.make_property("ConstraintValue", "App::PropertyLength")
         child.make_property("ConstraintType", "App::PropertyEnumeration")
-        child.make_property("PadtoGrid", "App::PropertyBool")
+        child.make_property("PadToGrid", "App::PropertyBool")
+
         child_obj.ConstraintType = ["distance", "xPosition", "yPosition", "zPosition"]
         if distance is not None:
             child_obj.ConstraintType = "distance"
             child_obj.ConstraintValue = distance
+            child_obj.PadToGrid = pad_to_grid
         if x_position is not None:
             child_obj.ConstraintType = "xPosition"
             child_obj.ConstraintValue = x_position
@@ -837,7 +841,7 @@ class BeamPath(Layout):
             # get position from provided constraint
             try:
                 next_position = input_beam.get_constraint_position(
-                    next_object.ConstraintType, next_object.ConstraintValue.Value, next_object.PadtoGrid
+                    next_object.ConstraintType, next_object.ConstraintValue.Value, next_object.PadToGrid
                 )
             except RuntimeError as e:
                 raise RuntimeError(
@@ -952,7 +956,7 @@ class BeamPath(Layout):
 
             # get object placement
             intercept = input_beam.get_constraint_position(
-                type="distance", value=next_distance, pad_to_grid=next_object.PadtoGrid
+                type="distance", value=next_distance, pad_to_grid=next_object.PadToGrid
             )
             next_object.Proxy.compute_placement()  # update placement
             object_rotation = next_object.Placement.Rotation
