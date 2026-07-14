@@ -1260,6 +1260,7 @@ class Reflection(Interface):
         max_angle (float): Maximum angle between incident beam and interface normal in degrees
         single_sided (bool): Whether the interface only interacts with beams from one side
         refractive_index_ratio (float): ratio of refractive index before interface to refractive index after interface
+        d_mirror (bool): only reflect on the negative x side, transmit on the other half
     """
 
     def __init__(
@@ -1275,6 +1276,7 @@ class Reflection(Interface):
         max_angle: float = 90,
         single_sided: bool = False,
         refractive_index_ratio: float = 1,
+        d_mirror: bool = False
     ):
 
         super().__init__(
@@ -1287,6 +1289,8 @@ class Reflection(Interface):
             single_sided=single_sided,
         )
 
+        self.d_mirror = d_mirror
+        
         if (ref_ratio != None and ref_ratio != 1) + (ref_polarization != None) + (
             ref_wavelengths != None
         ) > 1:
@@ -1334,6 +1338,12 @@ class Reflection(Interface):
             transmit_ratio = 0
             transmit_jones = incident_jones
             reflect_jones = incident_jones
+            if self.d_mirror:
+                offset_vec = intercept - self.get_global_position()
+                if offset_vec[0]>0:
+                    transmit_ratio = 1
+                else:
+                    transmit_ratio = 0
         if self.type == "sampler":
             transmit_ratio = 1 - self.ref_ratio
             transmit_jones = incident_jones
