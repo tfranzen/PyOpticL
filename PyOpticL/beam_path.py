@@ -246,7 +246,6 @@ class BeamSegment(Layout):
         if type == "distance":
             output = position + value * direction
             if pad_to_grid:
-                print(output)
                 axis = np.argmax(np.abs(direction))   # pick the cardinal direction most closely aligned to the beam
                 spacing = dim(1, "grid")
 
@@ -255,7 +254,6 @@ class BeamSegment(Layout):
                     target += spacing
                 t = (target - position[axis]) / direction[axis]
                 output = position + t * direction
-                print(output)
         if type == "xPosition":
             if isclose(direction[0], 0):
                 raise RuntimeError(
