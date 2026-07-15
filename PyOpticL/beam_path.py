@@ -244,6 +244,16 @@ class BeamSegment(Layout):
         # calculate position based on specified constraint
         if type == "distance":
             output = position + value * direction
+            if pad_to_grid:
+                # convenience function to extend distance until we're aligned with the grid
+                axis = np.argmax(np.abs(direction))   # pick the cardinal direction most closely aligned to the beam
+                spacing = dim(1, "grid")
+
+                target = (output[axis]// spacing) * spacing 
+                if direction[axis] > 0:
+                    target += spacing
+                t = (target - position[axis]) / direction[axis]
+                output = position + t * direction
         if type == "xPosition":
             if isclose(direction[0], 0):
                 raise RuntimeError(
