@@ -1809,3 +1809,106 @@ class AcoustoOptic(Interface):
                 i += 1
 
         return output_beams
+
+class ObjectiveLens(Interface):
+    """
+    Base class for lens interface
+    Supports spherical lenses using thin lens approximation
+
+    Args:
+        position (tuple): (x, y, z) coordinates
+        rotation (tuple): (angle_x, angle_y, angle_z) rotation in degrees
+        focal_length (float): Focal length of the lens
+        diameter (float): Diameter for circular interface
+        max_angle (float): Maximum angle between incident beam and interface normal in degrees
+        length (float): Distance between principal planes
+    """
+
+    def __init__(
+        self,
+        position: tuple,
+        rotation: tuple,
+        focal_length: dim,
+        diameter: dim = None,
+        max_angle: float = 90,
+        length: float = 0
+    ):
+
+        super().__init__(
+            position=position,
+            rotation=rotation,
+            diameter=diameter,
+            max_angle=max_angle,
+            single_sided=False,
+        )
+
+        self.focal_length = focal_length
+
+        self.abcd_matrix = [1, 0, -1 / focal_length, 1]
+        
+        self.length = length
+
+    def get_output_beams(self, incident_beam: BeamSegment) -> list[BeamSegment]:
+        """
+        Get the output beams from an incident beam interacting with the interface
+
+        Args:
+            incident_beam (Beam): Incident beam object
+
+        Returns:
+            output_beams (list): List of output Beam objects
+        """
+
+        global_normal = self.get_global_normal()
+        beam_direction = incident_beam.get_global_direction()
+        intercept = self.get_intercept(incident_beam)
+
+        if intercept is None:
+            return []
+
+        local_origin = incident_beam.get_relative_position(intercept)
+
+        # handle off-center interactions
+        radial_vector = intercept - self.get_global_position()
+        if np.isclose(np.linalg.norm(radial_vector), 0):
+            direction = beam_direction  # on-axis beam, no change in direction
+        else:
+            # calculate new beam direction using thin lens approximation
+            normal_component = np.dot(beam_direction, global_normal)
+            radial_direction = radial_vector / np.linalg.norm(radial_vector)
+            tangent_direction = np.cross(radial_direction, global_normal)
+            tangent_component = np.dot(beam_direction, tangent_direction)
+            tangent_slope = tangent_component / normal_component
+            radial_slope = np.dot(beam_direction, radial_direction) / normal_component
+            radial_slope -= (
+                np.linalg.norm(radial_vector)
+                / self.focal_length
+                * np.sign(normal_component)
+            )
+            # construct new direction vector
+            direction = global_normal * normal_component
+            direction += tangent_direction * tangent_slope * normal_component
+            direction += radial_direction * radial_slope * normal_component
+            direction /= np.linalg.norm(direction)
+
+        self.abcd_matrix[2] = (-1/self.focal_length) * (1/np.sqrt(1+radial_slope**2)) * (1/np.sqrt(1+tangent_slope**2))
+        
+        waist_position, rayleigh_range = self.apply_abcd(incident_beam)
+        local_direction = incident_beam.get_relative_direction(direction)
+
+        output_offset = (-global_normal / (np.sqrt(sum(i**2 for i in global_normal)))) * self.length
+        
+        # generate output beam
+        output_beam = BeamSegment(
+            index=incident_beam.index,
+            direction=local_direction,
+            wavelength=incident_beam.wavelength,
+            polarization=incident_beam.polarization_jones,
+            power=incident_beam.power,
+            waist_position=waist_position,
+            rayleigh_range=rayleigh_range,
+        )
+        
+        incident_beam.add(output_beam, origin=local_origin+output_offset)
+        
+        return [output_beam]
