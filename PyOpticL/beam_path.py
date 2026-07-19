@@ -693,7 +693,7 @@ class BeamPath(Layout):
                         rotation=rotation.getYawPitchRoll()[::-1],
                     )
                 
-    def get_output_beams(self, after_object: Layout):
+    def get_output_indices(self, after_object: Layout):
         """
         Returns the output beam indices for an object
 
