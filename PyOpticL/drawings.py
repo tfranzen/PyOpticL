@@ -52,8 +52,14 @@ LANDSCAPE_TEMPLATE = (
 def get_view_extent(source, direction):
     """
     Return model size projected into the view plane.
-    """
 
+    Args:
+        source (Part::PartFeature): the geometry to be drawn
+        direction (tuple): the view direction
+
+    Returns:
+        width, height (float): extent of the projected view 
+    """
 
     shape = source.Shape
     bb = shape.BoundBox
@@ -90,6 +96,15 @@ def get_view_extent(source, direction):
 def fit_scale(view_width, view_height, page_w, page_h):
     """
     Compute scale which fits the view inside page.
+
+    Args:
+        view_width (float): Width of the view in mm
+        view_height (float): Height of the view in mm
+        page_w (float): Width of the page in mm
+        page_h (float):  Height of the page in mm
+
+    Returns:
+        scale (float): Largest scale where the view fits onto the page 
     """
 
     usable_w = page_w - 2 * MARGIN_MM
@@ -104,19 +119,31 @@ def fit_scale(view_width, view_height, page_w, page_h):
 def scale_label(scale):
     """
     Convert numeric scale to engineering notation.
+    
+    Args:
+        scale (float): numerical scale
+
+    Returns:
+        scale_label (str): string representation of the scale
     """
     
     if abs(scale - 1.0) < 1e-6:
         return "1 : 1"
     
     if scale > 1:
-        return f"{scale:g}:1"
+        return f"{scale:g} : 1"
     
     return f"1 : {round(1.0/scale):g}"
 
 def choose_standard_scale(max_scale):
     """
     Largest standard scale that fits.
+
+    Args:
+        max_scale (float): Largest acceptable scale
+
+    Returns:
+        standard_scale (float): Largest standard scale
     """
 
     for s in STANDARD_SCALES:
@@ -131,11 +158,12 @@ def make_drawing(baseplate, views = 'top'):
         """
         Generate drawings for a baseplate
 
-        baseplate: baseplate object for which to generate drawings
-        views: views to generate - currently 'top' for simple baseplates that have no threaded holes on the sides, or 'all'
+        Args:
+            baseplate (PartFeature): baseplate object for which to generate drawings
+            views (str): views to generate - currently 'top' for simple baseplates that have no threaded holes on the sides, or 'all'
         """
-        doc = App.ActiveDocument
 
+        doc = App.ActiveDocument
 
         if views.lower() == 'top':
              directions = [
@@ -288,6 +316,13 @@ def make_drawing(baseplate, views = 'top'):
 
 
 def count_drawings():
+    """
+    Count the number of TechDraw pages in the current document
+    
+    Returns:
+        num_pages (int): number of pages
+
+    """
     doc = FreeCAD.ActiveDocument
 
     # Collect pages first to avoid modifying the document
@@ -297,6 +332,8 @@ def count_drawings():
         if obj.isDerivedFrom("TechDraw::DrawPage")
     ]
     return len(pages)
+
+
 def delete_drawings():
 
     """
@@ -330,6 +367,11 @@ def delete_drawings():
 
 
 class DrawingOptionsDialog(QtGui.QDialog):
+
+    """
+    Dialog for selecting drawing options
+    
+    """
 
     def __init__(self, baseplate_names, drawing_pages, parent=None):
         super(DrawingOptionsDialog, self).__init__(parent)
@@ -405,8 +447,12 @@ class DrawingOptionsDialog(QtGui.QDialog):
             for item in self.baseplate_list.selectedItems()
         ]
 
-def generate_drawings():
 
+
+def generate_drawings():
+    """
+    Generate drawing for the active document
+    """
     doc = FreeCAD.ActiveDocument
 
     #check that all defined threads are distinguishable from their tap diameter
@@ -428,13 +474,14 @@ def generate_drawings():
                     if obj.Proxy.object_group == 'baseplate':
                         baseplates.append(obj.Name)
 
+    # Show options dialog
     dialog = DrawingOptionsDialog(baseplate_names=baseplates, drawing_pages=count_drawings())
 
     if dialog.exec_():
         if dialog.delete_existing:
             delete_drawings()
 
-        views = dialog.view_mode.split(" ")[0]
+        views = dialog.view_mode.split(" ")[0] # reduce verbose labels to keywords 'top' or 'all'
 
         # traverse the document and create drawings for all baseplate objects
         for obj in doc.Objects:
@@ -443,7 +490,6 @@ def generate_drawings():
                     if obj.Proxy.object_group == 'baseplate':
                             if obj.Name in dialog.selected_baseplates:
                                 make_drawing(obj, views)
-
 
 if __name__ == "__main__":
     generate_drawings()
