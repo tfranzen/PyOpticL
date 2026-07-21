@@ -414,7 +414,8 @@ class BeamSegment(Layout):
         current_position = 0  # track position along beam segments
         while current_position < self.distance:
             # TODO: may want to make ddw a user-defined parameter
-            dz = self.get_next_beam_point(q_param, 1e-3)  # get next segment distance
+            dz = self.get_next_beam_point(q_param, 1e-1)  # get next segment distance
+            dz = max(dz, 1e-3) 
             dz = min(dz, self.distance - current_position)  # clip to remaining distance
             # calculate starting and ending radius for segment
             radius1 = self.get_beam_radius(q_param)
@@ -1343,7 +1344,8 @@ class Reflection(Interface):
         Returns:
             output_beams (list): List of output Beam objects
         """
-
+        if incident_beam is None:
+            return []
         global_normal = self.get_global_normal()
         beam_direction = incident_beam.get_global_direction()
         intercept = self.get_intercept(incident_beam)
@@ -1359,11 +1361,18 @@ class Reflection(Interface):
             transmit_jones = incident_jones
             reflect_jones = incident_jones
             if self.d_mirror:
+                parent_obj = self.parent.get_object()
+                rotation = parent_obj.Placement.Rotation
                 offset_vec = intercept - self.get_global_position()
-                if offset_vec[0]>0:
+                #local_origin = incident_beam.get_relative_position(intercept)
+                local_position = rotation.inverted().multVec(App.Vector(*offset_vec))
+                
+                
+                if local_position[1]>0:
                     transmit_ratio = 1
                 else:
                     transmit_ratio = 0
+                print(transmit_ratio)
         if self.type == "sampler":
             transmit_ratio = 1 - self.ref_ratio
             transmit_jones = incident_jones
