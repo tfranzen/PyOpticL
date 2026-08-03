@@ -1730,7 +1730,6 @@ class Diffraction(Interface):
             single_sided=False,
         )
 
-
 class AcoustoOptic(Interface):
     """
     Implement acousto-optic diffraction
@@ -1808,7 +1807,7 @@ class AcoustoOptic(Interface):
         for freq in self.rf_frequencies:
             for k, order in enumerate(self.orders):
                 photon_k = 2 * np.pi / (incident_beam.wavelength * 1e-9)
-                phonon_k = 2 * np.pi * freq / self.sound_velocity
+                phonon_k = 2 * np.pi * freq * 1e6/ self.sound_velocity
 
                 direction = (
                     beam_direction * photon_k
@@ -1841,7 +1840,6 @@ class AcoustoOptic(Interface):
                 i += 1
 
         return output_beams
-
 
 class ObjectiveLens(Interface):
     """
