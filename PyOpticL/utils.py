@@ -10,7 +10,11 @@ import MeshPart
 import numpy as np
 import Part
 
-from PyOpticL.settings import get_measurement_system, get_minimum_thread_engagement, get_render_mode
+from PyOpticL.settings import (
+    get_measurement_system,
+    get_minimum_thread_engagement,
+    get_render_mode,
+)
 
 models_dir = Path(__file__).parent.absolute() / "models"
 
@@ -617,7 +621,7 @@ def import_model(
 
         if not (model_path / (f"{name}.stl")).is_file() or get_render_mode() == "STEP":
             if not (model_path / (f"{name}.step")).is_file():
-                    raise FileNotFoundError(f"Model STEP file not found")
+                raise FileNotFoundError(f"Model STEP file not found")
 
             shape = Part.read(str(model_path / (f"{name}.step")))
             if get_render_mode() == "STL":
@@ -631,7 +635,6 @@ def import_model(
         if get_render_mode() == "STL":
             # read mesh from file
             model = Mesh.read(str(model_path / (f"{name}.stl")))
-            
 
         # apply transformations from json
         info = json.load(open(model_path / (f"{name}.json")))
@@ -646,16 +649,34 @@ def import_model(
         # Compose: translate first, then rotate
         final_mat = rot_mat.multiply(trans_mat)
         # Apply transform directly to mesh geometry
-        if get_render_mode() == "STL":
-            model.transform(final_mat)
-        if get_render_mode() == "STEP":
-            if not np.all(np.isclose(final_mat.A, App.Placement().toMatrix().A)):
-                # transformGeometry is slow, so only call when there actually is something to transform
-                model = model.transformGeometry(final_mat)
-            model.Placement = App.Placement()
+        model = transform_model(model, final_mat)
 
     except FileNotFoundError as e:
         print(f"Error importing model '{name}': {e}")
         model = None
 
     return model
+
+
+def transform_model(model, matrix):
+    """
+    Transform a model by a given transform matrix
+
+    Args:
+        model (Mesh.Mesh | Shape.Shape): input model
+        matrix (Matrix): transform matrix
+
+    Returns:
+        model (Mesh.Mesh | Shape.Shape): transformed model
+    """
+
+    if isinstance(model, Mesh.Mesh):
+        model.transform(matrix)
+        return model
+    elif isinstance(model, Part.Shape) or isinstance(model, Part.Solid):
+        if not np.all(np.isclose(matrix.A, App.Placement().toMatrix().A)):
+            model = model.transformGeometry(matrix)
+            model.Placement = App.Placement()
+        return model
+    else:
+        raise ValueError("Unrecognised model type %s" % type(model))

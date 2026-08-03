@@ -5,7 +5,6 @@ from collections import namedtuple
 import FreeCAD as App
 import Part
 import Mesh
-
 from PyOpticL.settings import get_hidden_object_groups, get_render_mode
 from PyOpticL.utils import collect_children
 
@@ -212,11 +211,11 @@ class Component(Layout):
                     setattr(self, attr, getattr(definition, attr))
 
             if hasattr(definition, "mesh"):
-                 match get_render_mode():
-                     case "STL":
-                         object_type = "Mesh"
-                     case "STEP":
-                         object_type = "Part"
+                match get_render_mode():
+                    case "STL":
+                        object_type = "Mesh"
+                    case "STEP":
+                        object_type = "Part"
 
             # wrap interfaces to set parent
             if hasattr(definition, "interfaces"):
@@ -254,10 +253,16 @@ class Component(Layout):
         """Calculate and set the shape of the object"""
 
         obj = self.get_object()
-        if self.object_group in get_hidden_object_groups() or (hasattr(self, "mesh") and self.mesh is None) or get_render_mode() == "NONE":
+        if (
+            self.object_group in get_hidden_object_groups()
+            or (hasattr(self, "mesh") and self.mesh is None)
+            or get_render_mode() == "NONE"
+        ):
             pass
         # update object shape
-        elif self.object_type == "Part" and (hasattr(self, "shape") or hasattr(self, "mesh")):
+        elif self.object_type == "Part" and (
+            hasattr(self, "shape") or hasattr(self, "mesh")
+        ):
             if hasattr(self, "mesh"):
                 shape = self.mesh
             else:
@@ -315,7 +320,9 @@ class Component(Layout):
                                     and intersection.Area > 1e-6
                                 ):
                                     max_dimension = shape.BoundBox.DiagonalLength
-                                    extrusion = face.extrude(max_dimension * z_direction)
+                                    extrusion = face.extrude(
+                                        max_dimension * z_direction
+                                    )
                                     drill_shape = drill_shape.fuse(extrusion)
 
                             shape = shape.cut(drill_shape)

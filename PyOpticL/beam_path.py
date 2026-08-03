@@ -246,10 +246,12 @@ class BeamSegment(Layout):
         if type == "distance":
             output = position + value * direction
             if pad_to_grid:
-                axis = np.argmax(np.abs(direction))   # pick the cardinal direction most closely aligned to the beam
+                axis = np.argmax(
+                    np.abs(direction)
+                )  # pick the cardinal direction most closely aligned to the beam
                 spacing = dim(1, "grid")
 
-                target = (output[axis]// spacing) * spacing 
+                target = (output[axis] // spacing) * spacing
                 if direction[axis] > 0:
                     target += spacing
                 t = (target - position[axis]) / direction[axis]
@@ -415,7 +417,7 @@ class BeamSegment(Layout):
         while current_position < self.distance:
             # TODO: may want to make ddw a user-defined parameter
             dz = self.get_next_beam_point(q_param, 1e-1)  # get next segment distance
-            dz = max(dz, 1e-3) 
+            dz = max(dz, 1e-3)
             dz = min(dz, self.distance - current_position)  # clip to remaining distance
             # calculate starting and ending radius for segment
             radius1 = self.get_beam_radius(q_param)
@@ -602,7 +604,7 @@ class BeamPath(Layout):
         after_object: Layout = None,
         offset: tuple[dim] = (0, 0),
         interface_index: int = 0,
-        pad_to_grid: bool = False
+        pad_to_grid: bool = False,
     ) -> Layout:
         """
         Add a child layout to the beam path and assign beam index
@@ -706,8 +708,9 @@ class BeamPath(Layout):
                         segment_length=beam.Distance.Value,
                         position=beam.BasePlacement.Base,
                         rotation=rotation.getYawPitchRoll()[::-1],
+                        direction=direction,
                     )
-                
+
     def get_output_indices(self, after_object: Layout):
         """
         Returns the output beam indices for an object
@@ -715,7 +718,7 @@ class BeamPath(Layout):
         Args:
             after_object (Layout): The object after which to measure the beam
 
-        Returns: 
+        Returns:
             beam_indices (list of int): Beam indices of all beams exiting the specified object
         """
         self.recompute()
@@ -724,7 +727,6 @@ class BeamPath(Layout):
             if beam.StartObject == after_object.get_object():
                 beam_indices.append(beam.Proxy.index)
         return beam_indices
-    
 
     def compute_path(self):
         """
@@ -858,7 +860,9 @@ class BeamPath(Layout):
             # get position from provided constraint
             try:
                 next_position = input_beam.get_constraint_position(
-                    next_object.ConstraintType, next_object.ConstraintValue.Value, next_object.PadToGrid
+                    next_object.ConstraintType,
+                    next_object.ConstraintValue.Value,
+                    next_object.PadToGrid,
                 )
             except RuntimeError as e:
                 raise RuntimeError(
@@ -1297,7 +1301,7 @@ class Reflection(Interface):
         max_angle: float = 90,
         single_sided: bool = False,
         refractive_index_ratio: float = 1,
-        d_mirror: bool = False
+        d_mirror: bool = False,
     ):
 
         super().__init__(
@@ -1311,7 +1315,7 @@ class Reflection(Interface):
         )
 
         self.d_mirror = d_mirror
-        
+
         if (ref_ratio != None and ref_ratio != 1) + (ref_polarization != None) + (
             ref_wavelengths != None
         ) > 1:
@@ -1364,15 +1368,14 @@ class Reflection(Interface):
                 parent_obj = self.parent.get_object()
                 rotation = parent_obj.Placement.Rotation
                 offset_vec = intercept - self.get_global_position()
-                #local_origin = incident_beam.get_relative_position(intercept)
+                # local_origin = incident_beam.get_relative_position(intercept)
                 local_position = rotation.inverted().multVec(App.Vector(*offset_vec))
-                
-                
-                if local_position[1]>0:
+
+                if local_position[1] > 0:
                     transmit_ratio = 1
                 else:
                     transmit_ratio = 0
-                print(transmit_ratio)
+
         if self.type == "sampler":
             transmit_ratio = 1 - self.ref_ratio
             transmit_jones = incident_jones
@@ -1839,6 +1842,7 @@ class AcoustoOptic(Interface):
 
         return output_beams
 
+
 class ObjectiveLens(Interface):
     """
     Base class for lens interface
@@ -1860,7 +1864,7 @@ class ObjectiveLens(Interface):
         focal_length: dim,
         diameter: dim = None,
         max_angle: float = 90,
-        length: float = 0
+        length: float = 0,
     ):
 
         super().__init__(
@@ -1874,7 +1878,7 @@ class ObjectiveLens(Interface):
         self.focal_length = focal_length
 
         self.abcd_matrix = [1, 0, -1 / focal_length, 1]
-        
+
         self.length = length
 
     def get_output_beams(self, incident_beam: BeamSegment) -> list[BeamSegment]:
@@ -1920,13 +1924,19 @@ class ObjectiveLens(Interface):
             direction += radial_direction * radial_slope * normal_component
             direction /= np.linalg.norm(direction)
 
-        self.abcd_matrix[2] = (-1/self.focal_length) * (1/np.sqrt(1+radial_slope**2)) * (1/np.sqrt(1+tangent_slope**2))
-        
+        self.abcd_matrix[2] = (
+            (-1 / self.focal_length)
+            * (1 / np.sqrt(1 + radial_slope**2))
+            * (1 / np.sqrt(1 + tangent_slope**2))
+        )
+
         waist_position, rayleigh_range = self.apply_abcd(incident_beam)
         local_direction = incident_beam.get_relative_direction(direction)
 
-        output_offset = (-global_normal / (np.sqrt(sum(i**2 for i in global_normal)))) * self.length
-        
+        output_offset = (
+            -global_normal / (np.sqrt(sum(i**2 for i in global_normal)))
+        ) * self.length
+
         # generate output beam
         output_beam = BeamSegment(
             index=incident_beam.index,
@@ -1937,7 +1947,7 @@ class ObjectiveLens(Interface):
             waist_position=waist_position,
             rayleigh_range=rayleigh_range,
         )
-        
-        incident_beam.add(output_beam, origin=local_origin+output_offset)
-        
+
+        incident_beam.add(output_beam, origin=local_origin + output_offset)
+
         return [output_beam]
