@@ -219,15 +219,14 @@ class Component(Layout):
 
             # wrap interfaces to set parent
             if hasattr(definition, "interfaces"):
-
                 def interfaces(self):
                     interfaces = definition.interfaces()
                     for interface in interfaces:
                         interface.parent = self
                     return interfaces
-
+        
         self.__class__ = Component_Wrapper
-
+        
         super().__init__(
             label=label,
             recompute_priority=recompute_priority,
