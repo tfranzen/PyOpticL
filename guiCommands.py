@@ -189,6 +189,7 @@ class Reload_Modules:
         for module_name in list(sys.modules.keys()):
             if module_name.startswith("PyOpticL"):
                 reload(sys.modules[module_name])
+                print(module_name)
 
         App.Console.PrintMessage("Freecad Optics Modules Reloaded\n")
         return
@@ -265,9 +266,7 @@ class Import_Model_Dialog(QtGui.QDialog):
         self.setModal(False)
         self.setWindowFlags(QtCore.Qt.Window | QtCore.Qt.WindowStaysOnTopHint)
 
-        self.instructions = QtGui.QLabel(
-            cleandoc(
-                """
+        self.instructions = QtGui.QLabel(cleandoc("""
                 Please define the optical center and orientation for the model.
                 To do this, select one or more edges whose centers match or frame the desired origin,
                 then orient the camera such as to view the model exactly from the desired front.
@@ -276,9 +275,7 @@ class Import_Model_Dialog(QtGui.QDialog):
                 When ready, press 'Orient' to apply the new orientation.
                 When complete, the origin should be as desired and the front of the model should face +X (right).
                 If the orientation is incorrect, you may press 'Reset' to try again.
-                """
-            )
-        )
+                """))
         self.orient_button = QtGui.QPushButton("Orient")
         self.orient_button.clicked.connect(self.orient)
         self.reset_button = QtGui.QPushButton("Reset")
@@ -572,6 +569,7 @@ class Get_Position:
 
         print(f"Position: ({position[0]:.3f}, {position[1]:.3f}, {position[2]:.3f})")
         return
+
 
 class Generate_Drawings:
 
