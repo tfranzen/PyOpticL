@@ -1,5 +1,5 @@
-import inspect
 import json
+import os
 import sys
 from importlib import reload
 from pathlib import Path
@@ -17,6 +17,23 @@ from PyOpticL.settings import (
 )
 
 models_dir = Path(__file__).parent.absolute() / "models"
+
+# imported models, kept across module reloads (reload re-executes in the same namespace)
+_model_cache = globals().get("_model_cache", {})
+
+
+def _caller_filename(depth: int = 2) -> str:
+    """
+    Get the filename of a calling frame (much cheaper than inspect.stack())
+
+    Args:
+        depth (int): Number of frames above this function's caller (2 = caller's caller)
+
+    Returns:
+        str: Filename of the calling frame
+    """
+
+    return sys._getframe(depth).f_code.co_filename
 
 
 turn_angle = {
@@ -85,11 +102,13 @@ def fix_relative_imports(directory: str | list = ""):
     else:
         directories = directory
 
+    caller_filename = _caller_filename()
+
     for directory in directories:
         directory = Path(directory)
 
         if not directory.is_absolute():
-            base_path = Path(inspect.stack()[1].filename).parent
+            base_path = Path(caller_filename).parent
             directory = base_path / directory
 
         directory = directory.resolve()
@@ -98,6 +117,8 @@ def fix_relative_imports(directory: str | list = ""):
             sys.path.append(str(directory))
 
         # Reload modules whose source files are inside the target directory.
+        # (string comparison, as Path.resolve() per module is very slow on Windows)
+        directory_prefix = os.path.normcase(str(directory)) + os.sep
         for module in list(sys.modules.values()):
             if module is None:
                 continue
@@ -107,11 +128,11 @@ def fix_relative_imports(directory: str | list = ""):
                 continue
 
             try:
-                module_path = Path(module_file).resolve()
-            except (OSError, RuntimeError, ValueError):
+                module_path = os.path.normcase(os.path.abspath(module_file))
+            except (OSError, ValueError):
                 continue
 
-            if module_path.is_relative_to(directory):
+            if module_path.startswith(directory_prefix):
                 reload(module)
 
 
@@ -201,7 +222,25 @@ def translate_shape(shape: Part.Shape, translation: tuple):
     """
 
     shape.translate(App.Vector(*translation))
-    shape = shape.fuse(shape)
+    return bake_placement(shape)
+
+
+def bake_placement(shape: Part.Shape) -> Part.Shape:
+    """
+    Apply a shape's placement to its geometry so that its placement is the identity
+    (cheaper than the equivalent self-fuse)
+
+    Args:
+        shape (Part.Shape): The input shape
+
+    Returns:
+        Part.Shape: The shape with its placement applied to its geometry
+    """
+
+    matrix = shape.Placement.toMatrix()
+    shape = shape.copy()
+    shape.Placement = App.Placement()
+    shape.transformShape(matrix, True)
     return shape
 
 
@@ -232,8 +271,7 @@ def rotate_shape(shape: Part.Shape, rotation: tuple):
         App.Vector(0, 0, 1),
         rotation[2],
     )
-    shape = shape.fuse(shape)
-    return shape
+    return bake_placement(shape)
 
 
 def box_shape(
@@ -605,10 +643,24 @@ def import_model(
     directory = Path(directory)
 
     if not directory.is_absolute():
-        base_path = Path(inspect.stack()[1].filename).parent
+        base_path = Path(_caller_filename()).parent
         directory = base_path / directory
 
     model_path = directory / name
+
+    # reuse a previously imported model if none of its files have changed
+    cache_key = (str(model_path), get_render_mode())
+    stamp = []
+    for ext in ("json", "stl", "step"):
+        try:
+            stamp.append(os.stat(os.path.join(model_path, f"{name}.{ext}")).st_mtime_ns)
+        except OSError:
+            stamp.append(None)
+    stamp = tuple(stamp)
+    cached = _model_cache.get(cache_key)
+    if cached is not None and cached[0] == stamp:
+        return cached[1].copy()
+
     model = None
     try:
         # validate files
@@ -655,6 +707,8 @@ def import_model(
         print(f"Error importing model '{name}': {e}")
         model = None
 
+    if model is not None:
+        _model_cache[cache_key] = (stamp, model.copy())
     return model
 
 

@@ -301,6 +301,9 @@ class Component(Layout):
                             obj.Placement.inverse() * drill_obj.Placement
                         )
                         if hasattr(self, "shape"):
+                            # cheap bounding box rejection before boolean check
+                            if not shape.BoundBox.intersect(drill_shape.BoundBox):
+                                continue
                             # make sure drill intersects shape
                             common = shape.common(drill_shape)
                             if common.Volume < 1e-6 or drill_shape.Volume < 1e-6:
@@ -310,19 +313,20 @@ class Component(Layout):
                             z_direction = rotation.multVec(App.Vector(0, 0, 1))
 
                             # find and extrude +z-facing faces from drill_obj
+                            extrusions = []
                             for face in drill_shape.Faces:
+                                if not isinstance(face.Surface, Part.Plane):
+                                    continue
                                 normal = face.normalAt(0, 0)
-                                intersection = face.common(shape)
-                                if (
-                                    isinstance(face.Surface, Part.Plane)
-                                    and normal.getAngle(z_direction) < 1e-6
-                                    and intersection.Area > 1e-6
-                                ):
+                                if normal.getAngle(z_direction) >= 1e-6:
+                                    continue
+                                if face.common(shape).Area > 1e-6:
                                     max_dimension = shape.BoundBox.DiagonalLength
-                                    extrusion = face.extrude(
-                                        max_dimension * z_direction
+                                    extrusions.append(
+                                        face.extrude(max_dimension * z_direction)
                                     )
-                                    drill_shape = drill_shape.fuse(extrusion)
+                            if extrusions:
+                                drill_shape = drill_shape.fuse(extrusions)
 
                             shape = shape.cut(drill_shape)
 
