@@ -545,7 +545,7 @@ class BeamPath(Layout):
     ):
         super().__init__(
             label=label,
-            recompute_priority=-1,
+            recompute_priority=1,
         )
 
         obj = self.get_object()

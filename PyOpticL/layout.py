@@ -147,6 +147,16 @@ class Layout:
 
         obj.purgeTouched()  # prevent triggering recompute
 
+    def compute_placements(self):
+        """Recursively calculate global placements of this object and its children
+        (beam paths are left to place their own children)"""
+
+        if self.object_group == "beam_path":
+            return
+        self.compute_placement()
+        for child_obj in self.get_object().Children:
+            child_obj.Proxy.compute_placements()
+
     def recompute(self):
         """Recursively recompute all children of this object"""
 
@@ -154,7 +164,11 @@ class Layout:
         self.compute_placement()
 
         compute_list = obj.Children
-        # sort by recompute priority
+        # place all children first so beam paths can trace through their peers
+        for child_obj in compute_list:
+            child_obj.Proxy.compute_placements()
+        # sort by recompute priority (beam paths go first, so the components they
+        # place are in position before their peers' shapes are drilled)
         compute_list.sort(
             key=lambda child_obj: child_obj.Proxy.recompute_priority, reverse=True
         )
@@ -248,6 +262,35 @@ class Component(Layout):
 
         self.computed_shape = False
 
+    def get_drill_shape(self, drill_obj: App.DocumentObject) -> Part.Shape | None:
+        """
+        Get the shape another object drills into this one, in this object's frame
+
+        Args:
+            drill_obj (App.DocumentObject): Object that may drill this one
+
+        Returns:
+            Part.Shape | None: Drill shape, or None if the object does not drill this one
+        """
+
+        proxy = drill_obj.Proxy
+        if not hasattr(proxy, "drill"):
+            return None
+        if (
+            hasattr(proxy, "drill_groups")
+            and self.object_group not in proxy.drill_groups
+        ):
+            return None
+
+        proxy.compute_placement()
+        drill_shape = proxy.drill()
+        if drill_shape is None:
+            return None
+        drill_shape.Placement = (
+            self.get_object().Placement.inverse() * drill_obj.Placement
+        )
+        return drill_shape
+
     def compute_shape(self):
         """Calculate and set the shape of the object"""
 
@@ -274,32 +317,44 @@ class Component(Layout):
 
             # don't apply drilling to some groups
             if obj.Proxy.object_group not in ["hardware", "optics", "beam_path"]:
-                # gather peer objects
+                # gather peer objects and their sub-components
+                # (beams only drill objects they are placed in, not their peers)
+                peer_objs = []
+                if obj.Parent != None:
+                    for child in obj.Parent.Children:
+                        if child != obj:
+                            peer_objs.append(child)
+                            descendants = []
+                            collect_children(child, descendants)
+                            peer_objs.extend(
+                                d
+                                for d in descendants
+                                if d.Proxy.object_group != "beam_path"
+                            )
+
                 drill_objs = []
                 if obj.Parent != None:
                     drill_objs.append(obj.Parent)
-                    for child in obj.Parent.Children:
-                        if child != obj:
-                            drill_objs.append(child)
+                # objects can opt out of being drilled by their peers
+                # (e.g. breadboards with a fixed hole pattern), but may still
+                # check where the peers would have drilled
+                if getattr(self, "drilled_by_peers", True):
+                    drill_objs.extend(peer_objs)
+                elif hasattr(self, "check_peer_drill") and hasattr(self, "shape"):
+                    for drill_obj in peer_objs:
+                        drill_shape = self.get_drill_shape(drill_obj)
+                        if drill_shape is not None and shape.BoundBox.intersect(
+                            drill_shape.BoundBox
+                        ):
+                            self.check_peer_drill(drill_obj, drill_shape)
 
                 # gather child objects recursively
                 collect_children(obj, drill_objs)
 
                 # apply drilling
                 for drill_obj in drill_objs:
-                    if hasattr(drill_obj.Proxy, "drill"):
-                        if (
-                            hasattr(drill_obj.Proxy, "drill_groups")
-                            and obj.Proxy.object_group
-                            not in drill_obj.Proxy.drill_groups
-                        ):
-                            continue
-
-                        drill_obj.Proxy.compute_placement()
-                        drill_shape = drill_obj.Proxy.drill()
-                        drill_shape.Placement = (
-                            obj.Placement.inverse() * drill_obj.Placement
-                        )
+                    drill_shape = self.get_drill_shape(drill_obj)
+                    if drill_shape is not None:
                         if hasattr(self, "shape"):
                             # cheap bounding box rejection before boolean check
                             if not shape.BoundBox.intersect(drill_shape.BoundBox):
