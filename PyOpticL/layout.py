@@ -380,6 +380,33 @@ class Component(Layout):
                                     extrusions.append(
                                         face.extrude(max_dimension * z_direction)
                                     )
+
+                            # pocket at the far end of the hole (e.g. a nut), only in the part
+                            # containing it, opened by extruding its lowest -z faces to the back
+                            back_pocket = getattr(drill_obj.Proxy, "back_pocket", None)
+                            pocket = back_pocket() if callable(back_pocket) else None
+                            if pocket is not None:
+                                pocket.Placement = drill_shape.Placement
+                                down_faces = [
+                                    face
+                                    for face in pocket.Faces
+                                    if isinstance(face.Surface, Part.Plane)
+                                    and face.normalAt(0, 0).getAngle(-z_direction) < 1e-6
+                                ]
+                                lowest = min(
+                                    face.CenterOfMass.dot(z_direction)
+                                    for face in down_faces
+                                )
+                                for face in down_faces:
+                                    if (
+                                        abs(face.CenterOfMass.dot(z_direction) - lowest) < 1e-6
+                                        and face.common(shape).Area > 1e-6
+                                    ):
+                                        max_dimension = shape.BoundBox.DiagonalLength
+                                        extrusions.append(pocket)
+                                        extrusions.append(
+                                            face.extrude(-max_dimension * z_direction)
+                                        )
                             if extrusions:
                                 drill_shape = drill_shape.fuse(extrusions)
 
