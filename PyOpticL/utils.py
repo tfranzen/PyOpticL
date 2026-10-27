@@ -1,7 +1,6 @@
 import json
 import os
 import sys
-from importlib import reload
 from pathlib import Path
 
 import FreeCAD as App
@@ -91,7 +90,31 @@ class Dimension(float):
 dim = Dimension  # alias for convenience
 
 
+# modules loaded before the current macro run, kept across module reloads
+_import_run = globals().get("_import_run", {"root": None, "stale": {}})
+
+
+def _is_initializing(module) -> bool:
+    """Whether a module is part way through being imported"""
+
+    return getattr(getattr(module, "__spec__", None), "_initializing", False)
+
+
 def fix_relative_imports(directory: str | list = ""):
+    """
+    Add directories to the import path and make sure modules from them are
+    imported afresh once per macro run, so that changes to them are applied
+
+    The first call in a macro run (identified by the outermost frame on the stack)
+    marks every module loaded so far as stale. Stale modules inside the target
+    directories are unloaded, so the following imports load them again exactly once.
+    Modules imported during the current run are never unloaded, which avoids
+    repeatedly reloading modules that themselves call this function.
+
+    Args:
+        directory (str | list): Directory or list of directories, relative to the
+                                calling file (defaults to the calling file's directory)
+    """
 
     if isinstance(directory, str):
         directories = [directory]
@@ -99,6 +122,26 @@ def fix_relative_imports(directory: str | list = ""):
         directories = directory
 
     caller_filename = _caller_filename()
+
+    # find the outermost frame and the namespaces of all code currently running
+    active_namespaces = set()
+    frame = sys._getframe(1)
+    while frame is not None:
+        active_namespaces.add(id(frame.f_globals))
+        root_frame = frame
+        frame = frame.f_back
+
+    # a new macro run starts a new outermost frame
+    if _import_run["root"] is not root_frame:
+        _import_run["root"] = root_frame
+        _import_run["stale"] = {
+            name: module
+            for name, module in sys.modules.items()
+            if module is not None
+            and id(module.__dict__) not in active_namespaces
+            and not _is_initializing(module)
+        }
+    stale = _import_run["stale"]
 
     for directory in directories:
         directory = Path(directory)
@@ -112,13 +155,10 @@ def fix_relative_imports(directory: str | list = ""):
         if str(directory) not in sys.path:
             sys.path.append(str(directory))
 
-        # Reload modules whose source files are inside the target directory.
+        # Unload stale modules whose source files are inside the target directory.
         # (string comparison, as Path.resolve() per module is very slow on Windows)
         directory_prefix = os.path.normcase(str(directory)) + os.sep
-        for module in list(sys.modules.values()):
-            if module is None:
-                continue
-
+        for name, module in list(stale.items()):
             module_file = getattr(module, "__file__", None)
             if not module_file:
                 continue
@@ -128,8 +168,18 @@ def fix_relative_imports(directory: str | list = ""):
             except (OSError, ValueError):
                 continue
 
-            if module_path.startswith(directory_prefix):
-                reload(module)
+            if not module_path.startswith(directory_prefix):
+                continue
+
+            del stale[name]
+            if sys.modules.get(name) is module:
+                del sys.modules[name]
+                # also detach from the parent package, otherwise
+                # "from package import module" returns the stale module
+                parent_name, _, child_name = name.rpartition(".")
+                parent = sys.modules.get(parent_name)
+                if parent is not None and getattr(parent, child_name, None) is module:
+                    delattr(parent, child_name)
 
 
 def collect_children(parent: App.DocumentObject, output_list: list):
