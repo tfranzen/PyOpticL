@@ -27,7 +27,7 @@ class AOM_1205C:
                 position=(0, 0, 0),
                 rotation=(0, 0, 0),
                 sound_velocity=3630,
-                rf_frequencies=[100e6],
+                rf_frequencies=[100],  # MHz
                 order_powers=[0.2, 0.8],
                 diameter=dim(2, "mm"),
             ),

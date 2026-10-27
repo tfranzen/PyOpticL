@@ -1746,7 +1746,7 @@ class AcoustoOptic(Interface):
     Args:
         position (tuple): (x, y, z) coordinates
         rotation (tuple): (angle_x, angle_y, angle_z) rotation in degrees
-        rf_frequencies (list[float]): list of rf tones to apply
+        rf_frequencies (list[float]): list of rf tones to apply in MHz
         sound_velocity (float): velocity of sound in the AO material in m/s - defaults to longitudinal TeO2
         orders (list[int]): list of orders to generate - defaults to 0th and +1st
         order_powers (list[float]): relative power in each of the above orders
