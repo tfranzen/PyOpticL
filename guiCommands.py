@@ -189,7 +189,6 @@ class Reload_Modules:
         for module_name in list(sys.modules.keys()):
             if module_name.startswith("PyOpticL"):
                 reload(sys.modules[module_name])
-                print(module_name)
 
         App.Console.PrintMessage("Freecad Optics Modules Reloaded\n")
         return

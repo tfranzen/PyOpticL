@@ -1185,9 +1185,12 @@ class Interface:
             if np.linalg.norm(offset_vec) > self.diameter / 2:
                 return None
         elif self.shape == "rectangular":
+            # measure offset along the interface's own width and height axes
+            transverse = self.get_global_transverse()
+            vertical = np.cross(global_normal, transverse)
             if (
-                abs(offset_vec[0]) > self.width / 2
-                or abs(offset_vec[1]) > self.height / 2
+                abs(np.dot(transverse, offset_vec)) > self.width / 2
+                or abs(np.dot(vertical, offset_vec)) > self.height / 2
             ):
                 return None
 
