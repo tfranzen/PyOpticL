@@ -90,7 +90,12 @@ class Bolt:
     nut_tolerance = dim(0.3, "mm")  # added to the pocket width and height
 
     # heat-set inserts for 3D printed parts: hole diameter and minimum hole depth
+    # (CNC Kitchen standard-length inserts; the imperial sizes are taken from the
+    # manufacturer's table but have not been test-printed - check before relying on them)
     insert_dimensions = {
+        "4_40": dict(diameter=dim(4.0, "mm"), length=dim(5.7, "mm")),
+        "8_32": dict(diameter=dim(5.7, "mm"), length=dim(8.2, "mm")),
+        "1/4_20": dict(diameter=dim(8.1, "mm"), length=dim(12.7, "mm")),
         "M3": dict(diameter=dim(4.0, "mm"), length=dim(5.7, "mm")),
         "M4": dict(diameter=dim(5.6, "mm"), length=dim(8.1, "mm")),
         "M6": dict(diameter=dim(8.0, "mm"), length=dim(12.7, "mm")),
