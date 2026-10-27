@@ -295,7 +295,8 @@ class Component(Layout):
                         if common.Volume < 1e-6 or drill_shape.Volume < 1e-6:
                             continue
 
-                        rotation = drill_shape.Placement.Rotation.inverted()
+                        # drill axis in this object's frame (face normals are reported in it)
+                        rotation = drill_shape.Placement.Rotation
                         z_direction = rotation.multVec(App.Vector(0, 0, 1))
 
                         # find and extrude +z-facing faces from drill_obj
